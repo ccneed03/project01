@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}上传文档{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1">上传文档</h2>
+            <div class="text-muted">知识库：{{ kb.name }}</div>
+        </div>
+        <a href="{{ url_for('document.list_documents', kb_id=kb.id) }}" class="btn btn-outline-secondary">返回列表</a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <form method="POST" enctype="multipart/form-data" class="row g-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="col-12">
+                    <h5 class="mb-3">1. 基础信息</h5>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">文档标题</label>
+                    <input type="text" class="form-control" name="title" placeholder="可选，不填则使用文件名">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">选择文件</label>
+                    <input type="file" class="form-control" name="file" id="file" required>
+                    <div class="form-text">支持格式：txt、pdf、docx、md</div>
+                </div>
+
+                <div class="col-12 mt-2">
+                    <h5 class="mb-3">2. 数据处理设置</h5>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">分块模式</label>
+                    <select class="form-select" name="chunk_mode" id="chunkMode">
+                        <option value="paragraph">段落分块</option>
+                        <option value="separator">分隔符分块</option>
+                    </select>
+                </div>
+
+                <div id="paragraphFields">
+                    <div class="col-md-4">
+                        <label class="form-label">分块大小</label>
+                        <input type="number" class="form-control" name="chunk_size" id="chunkSizeField" value="500" min="50" max="4000">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">重叠大小</label>
+                        <input type="number" class="form-control" name="chunk_overlap" id="chunkOverlapField" value="50" min="0" max="1000">
+                    </div>
+                </div>
+
+                <div class="col-md-4" id="separatorField">
+                    <label class="form-label">分隔符</label>
+                    <input type="text" class="form-control" name="split_separator" id="splitSeparatorField" value="\n\n" placeholder="\n\n">
+                    <div class="form-text">分隔符分块模式下，可使用 <code>|</code> 表示多个分隔符，例如 <code>。|.</code> 表示中英文句号。段落模式下为段落优先分隔符。支持 <code>\n\n</code> 等转义形式。</div>
+                </div>
+
+                <div class="col-12">
+                    <div class="alert alert-info mb-0">
+                        当前知识库默认使用嵌入模型：<strong>{{ kb.default_embedding_model or "未配置" }}</strong>。
+                        文档上传后会先进入“预览”流程，系统解析并切块后，你可以先检查 chunk 质量，再确认正式创建索引。
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">上传并生成预览</button>
+                    <a href="{{ url_for('document.list_documents', kb_id=kb.id) }}" class="btn btn-outline-secondary">取消</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const chunkMode = document.getElementById("chunkMode");
+const separatorField = document.getElementById("separatorField");
+const paragraphFields = document.getElementById("paragraphFields");
+const chunkSizeField = document.getElementById("chunkSizeField");
+const chunkOverlapField = document.getElementById("chunkOverlapField");
+const splitSeparatorField = document.getElementById("splitSeparatorField");
+
+function updateFieldVisibility() {
+    const isSeparatorMode = chunkMode.value === "separator";
+    // Separator mode: show separator field, hide size/overlap
+    separatorField.style.display = isSeparatorMode ? "block" : "none";
+    paragraphFields.style.display = isSeparatorMode ? "none" : "block";
+    // Adjust required attributes
+    chunkSizeField.required = !isSeparatorMode;
+    chunkOverlapField.required = !isSeparatorMode;
+    // In separator mode, remove the required constraint and set default values
+    if (isSeparatorMode) {
+        splitSeparatorField.placeholder = "。|.";
+        if (!splitSeparatorField.value || splitSeparatorField.value === "\\n\\n") {
+            splitSeparatorField.value = "";
+        }
+    } else {
+        splitSeparatorField.placeholder = "\\n\\n";
+        if (!splitSeparatorField.value) {
+            splitSeparatorField.value = "\\n\\n";
+        }
+    }
+}
+
+chunkMode.addEventListener("change", updateFieldVisibility);
+updateFieldVisibility();
+</script>
+{% endblock %}

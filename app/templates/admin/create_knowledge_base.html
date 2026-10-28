@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}创建知识库{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1">创建知识库</h2>
+            <div class="text-muted">先定义知识库基础信息和默认 embedding 模型，文档级处理参数在上传时单独配置。</div>
+        </div>
+        <a href="{{ url_for('admin.knowledge_bases') }}" class="btn btn-outline-secondary">返回列表</a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <form method="POST" class="row g-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="col-12">
+                    <h5 class="mb-3">1. 基础信息</h5>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">知识库名称 *</label>
+                    <input type="text" class="form-control" name="name" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">默认 Embedding 模型 *</label>
+                    <select class="form-select" name="default_embedding_model" required>
+                        {% for model in embedding_models %}
+                        <option value="{{ model }}">{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">知识库描述</label>
+                    <textarea class="form-control" name="description" rows="3" placeholder="可选，用于说明知识库用途和内容范围"></textarea>
+                </div>
+
+                <div class="col-12">
+                    <div class="alert alert-info mb-0">
+                        当前阶段说明：
+                        <ul class="mb-0 mt-2">
+                            <li>Embedding 模型作为知识库默认值保存。</li>
+                            <li>文档上传时，用户仍然可以按文档覆盖默认 embedding 模型和分块策略。</li>
+                            <li>检索配置与文档索引配置后续会进一步从知识库中拆分出来。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="col-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">创建知识库</button>
+                    <a href="{{ url_for('admin.knowledge_bases') }}" class="btn btn-outline-secondary">取消</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

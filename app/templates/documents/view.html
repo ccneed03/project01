@@ -1,0 +1,73 @@
+{# templates/documents/view.html #}
+{% extends "base.html" %}
+
+{% block title %}{{ doc.original_filename }}{% endblock %}
+
+{% block content %}
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4>{{ doc.original_filename }}</h4>
+        <a href="{{ url_for('document.list_documents', kb_id=doc.knowledge_base_id) }}" class="btn btn-sm btn-secondary">返回</a>
+    </div>
+    <div class="card-body">
+        <table class="table table-bordered">
+            <tr>
+                <th width="20%">标题</th>
+                <td>{{ doc.display_title }}</td>
+            </tr>
+            <tr>
+                <th width="20%">文件类型</th>
+                <td>{{ doc.file_type|upper }}</td>
+            </tr>
+            <tr>
+                <th>文件大小</th>
+                <td>{{ doc.file_size|filesize }}</td>
+            </tr>
+            <tr>
+                <th>状态</th>
+                <td><span class="badge bg-secondary">{{ doc.status_label }}</span></td>
+            </tr>
+            <tr>
+                <th>Chunk 数量</th>
+                <td>{{ doc.chunk_count or '-' }}</td>
+            </tr>
+            <tr>
+                <th>当前配置</th>
+                <td>{{ current_config.id if current_config else '-' }}</td>
+            </tr>
+            <tr>
+                <th>当前任务</th>
+                <td>{{ current_task.id if current_task else '-' }}</td>
+            </tr>
+            <tr>
+                <th>上传时间</th>
+                <td>{{ doc.created_at|datetime }}</td>
+            </tr>
+            <tr>
+                <th>处理完成时间</th>
+                <td>{{ doc.processed_at|datetime if doc.processed_at else '-' }}</td>
+            </tr>
+            {% if doc.error_message %}
+            <tr>
+                <th>错误信息</th>
+                <td class="text-danger">{{ doc.error_message }}</td>
+            </tr>
+            {% endif %}
+        </table>
+
+        <div class="mt-3">
+            <a href="{{ url_for('document.preview_document', doc_id=doc.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-eye"></i> 查看预览
+            </a>
+            <a href="{{ url_for('document.view_document_chunks', doc_id=doc.id) }}" class="btn btn-primary">
+                <i class="bi bi-list"></i> 查看 Chunks
+            </a>
+            <form method="POST" action="{{ url_for('document.delete_document', doc_id=doc.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="kb_id" value="{{ doc.knowledge_base_id }}">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('确定删除?')">删除文档</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

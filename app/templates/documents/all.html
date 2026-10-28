@@ -1,0 +1,120 @@
+{# templates/documents/all.html #}
+{% extends "base.html" %}
+
+{% block title %}文档管理{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+    <h2>文档管理</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="GET" class="row g-3 mb-3">
+            <div class="col-md-3">
+                <select class="form-select" name="status">
+                    <option value="">全部状态</option>
+                    <option value="uploaded" {% if status=='uploaded' %}selected{% endif %}>已上传</option>
+                    <option value="previewing" {% if status=='previewing' %}selected{% endif %}>预览中</option>
+                    <option value="ready_to_index" {% if status=='ready_to_index' %}selected{% endif %}>待确认索引</option>
+                    <option value="indexing" {% if status=='indexing' %}selected{% endif %}>索引构建中</option>
+                    <option value="completed" {% if status=='completed' %}selected{% endif %}>已完成</option>
+                    <option value="failed" {% if status=='failed' %}selected{% endif %}>失败</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" class="form-control" name="search" placeholder="搜索文件名..." value="{{ search or '' }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-secondary">筛选</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>文件名</th>
+                        <th>知识库</th>
+                        <th>类型</th>
+                        <th>大小</th>
+                        <th>状态</th>
+                        <th>Chunks</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documents %}
+                    <tr>
+                        <td>{{ doc.id }}</td>
+                        <td>{{ doc.original_filename }}</td>
+                        <td>
+                            {% if doc.knowledge_base %}
+                            <a href="{{ url_for('document.list_documents', kb_id=doc.knowledge_base_id) }}">{{ doc.knowledge_base.name }}</a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ doc.file_type|upper }}</td>
+                        <td>{{ doc.file_size|filesize }}</td>
+                        <td>
+                            {% if doc.status == 'uploaded' %}
+                            <span class="badge bg-secondary">已上传</span>
+                            {% elif doc.status == 'previewing' %}
+                            <span class="badge bg-info">预览中</span>
+                            {% elif doc.status == 'ready_to_index' %}
+                            <span class="badge bg-primary">待确认索引</span>
+                            {% elif doc.status == 'indexing' %}
+                            <span class="badge bg-warning text-dark">索引构建中</span>
+                            {% elif doc.status == 'pending' %}
+                            <span class="badge bg-secondary">待处理</span>
+                            {% elif doc.status == 'parsing' %}
+                            <span class="badge bg-info">正在解析</span>
+                            {% elif doc.status == 'splitting' %}
+                            <span class="badge bg-primary">正在切分</span>
+                            {% elif doc.status == 'vectorizing' %}
+                            <span class="badge bg-warning text-dark">正在向量化</span>
+                            {% elif doc.status == 'completed' %}
+                            <span class="badge bg-success">已完成</span>
+                            {% else %}
+                            <span class="badge bg-danger">失败</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ doc.chunk_count or '-' }}</td>
+                        <td>{{ doc.created_at|datetime }}</td>
+                        <td>
+                            <a href="{{ url_for('document.view_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-primary">查看</a>
+                            <a href="{{ url_for('document.preview_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-secondary">预览</a>
+                            <a href="{{ url_for('document.view_document_chunks', doc_id=doc.id) }}" class="btn btn-sm btn-outline-info">Chunks</a>
+                            <form method="POST" action="{{ url_for('document.delete_document', doc_id=doc.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="kb_id" value="{{ doc.knowledge_base_id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定删除?')">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted">暂无文档</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if total > per_page %}
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% for p in range(1, (total // per_page) + 2) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ p }}&status={{ status or '' }}&search={{ search or '' }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{# templates/documents/chunks.html #}
+{% extends "base.html" %}
+
+{% block title %}{{ doc.original_filename }} - Chunks{% endblock %}
+
+{% block content %}
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4>文档 Chunks - {{ doc.original_filename }}</h4>
+        <a href="{{ url_for('document.view_document', doc_id=doc.id) }}" class="btn btn-sm btn-secondary">返回</a>
+    </div>
+    <div class="card-body">
+        <p>共 {{ total }} 个 chunks</p>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th width="10%">Index</th>
+                        <th width="55%">Content</th>
+                        <th width="15%">标签</th>
+                        <th width="20%">Vector ID</th>
+                        <th width="10%">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for chunk in chunks %}
+                    <tr>
+                        <td>{{ chunk.chunk_index }}</td>
+                        <td><small>{{ chunk.content|truncate_chars(200) }}</small></td>
+                        <td>
+                            {% for tag in chunk.tags %}
+                            <span class="badge bg-light text-dark border">{{ tag }}</span>
+                            {% else %}
+                            <span class="text-muted small">-</span>
+                            {% endfor %}
+                        </td>
+                        <td><code>{{ chunk.vector_id }}</code></td>
+                        <td>
+                            <a href="{{ url_for('document.chunk_detail', chunk_id=chunk.id) }}" class="btn btn-sm btn-outline-primary">详情</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if total > per_page %}
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% for p in range(1, (total // per_page) + 2) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ p }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

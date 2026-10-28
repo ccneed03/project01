@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}文档预览{% endblock %}
+
+{% block content %}
+{% set index_completed = doc.status == 'completed' or (current_task and current_task.status == 'completed') %}
+{% set index_running = doc.status == 'indexing' or (current_task and current_task.status in ['pending', 'running']) %}
+{% set disable_confirm_button = (not preview_result) or index_completed or index_running %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1">文档预览</h2>
+            <div class="text-muted">{{ doc.display_title }}</div>
+        </div>
+        <a href="{{ url_for('document.list_documents', kb_id=doc.knowledge_base_id) }}" class="btn btn-outline-secondary">返回列表</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="mb-3">文档信息</h5>
+                    <dl class="row mb-0">
+                        <dt class="col-4">文件名</dt>
+                        <dd class="col-8">{{ doc.original_filename }}</dd>
+
+                        <dt class="col-4">状态</dt>
+                        <dd class="col-8">
+                            <span class="badge bg-secondary">{{ doc.status_label }}</span>
+                        </dd>
+
+                        <dt class="col-4">预览任务</dt>
+                        <dd class="col-8">
+                            {% if preview_task %}
+                            <span class="badge {% if preview_task.status == 'completed' %}bg-success{% elif preview_task.status == 'failed' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                {{ preview_task.status }}
+                            </span>
+                            <div class="small text-muted mt-1">任务 ID：{{ preview_task.id }}</div>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-4">索引任务</dt>
+                        <dd class="col-8">
+                            {% if current_task %}
+                            <span class="badge {% if current_task.status == 'completed' %}bg-success{% elif current_task.status == 'failed' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                {{ current_task.status }}
+                            </span>
+                            <div class="small text-muted mt-1">任务 ID：{{ current_task.id }}</div>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-4">Chunk 数</dt>
+                        <dd class="col-8">{{ preview_result.chunk_count if preview_result else '-' }}</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mt-4">
+                <div class="card-body">
+                    <h5 class="mb-3">当前配置</h5>
+                    {% if config %}
+                    <dl class="row mb-0">
+                        <dt class="col-5">Embedding</dt>
+                        <dd class="col-7">{{ config.embedding_model }}</dd>
+                        <dt class="col-5">分块模式</dt>
+                        <dd class="col-7">{% if config.chunk_mode == 'separator' %}分隔符分块{% else %}段落分块{% endif %}</dd>
+                        {% if config.chunk_mode != 'separator' %}
+                        <dt class="col-5">分块大小</dt>
+                        <dd class="col-7">{{ config.chunk_size }}</dd>
+                        <dt class="col-5">重叠大小</dt>
+                        <dd class="col-7">{{ config.chunk_overlap }}</dd>
+                        {% endif %}
+                        {% if config.chunk_mode == 'separator' %}
+                        <dt class="col-5">分隔符</dt>
+                        <dd class="col-7">{{ config.split_separator or '-' }}</dd>
+                        {% endif %}
+                    </dl>
+                    {% else %}
+                    <div class="text-muted">暂无配置</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex gap-2">
+                <form method="POST" action="{{ url_for('document.confirm_document_index', doc_id=doc.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="config_id" value="{{ config.id if config else '' }}">
+                    <button
+                        type="submit"
+                        class="btn {% if disable_confirm_button %}btn-secondary{% else %}btn-primary{% endif %}"
+                        {% if disable_confirm_button %}disabled{% endif %}
+                    >
+                        {% if index_completed %}
+                        索引已完成
+                        {% elif index_running %}
+                        索引构建中
+                        {% else %}
+                        确认创建索引
+                        {% endif %}
+                    </button>
+                </form>
+                <a href="{{ url_for('document.upload_document', kb_id=doc.knowledge_base_id) }}" class="btn btn-outline-secondary">重新上传</a>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">分块预览</h5>
+                        {% if preview_task %}
+                        <span class="small text-muted">任务 ID：{{ preview_task.id }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if preview_result and preview_result.preview_chunks %}
+                    <div class="d-flex flex-column gap-3">
+                        {% for item in preview_result.preview_chunks %}
+                        <div class="border rounded-3 p-3 bg-light">
+                            <div class="small text-muted mb-2">Chunk #{{ item.chunk_index }}</div>
+                            <div style="white-space: pre-wrap;">{{ item.content }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% elif preview_task and preview_task.status == 'failed' %}
+                    <div class="alert alert-danger mb-0">
+                        预览失败：{{ preview_task.error_message or '未知错误' }}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mb-0" id="previewPendingNotice">
+                        预览结果尚未生成，请稍后刷新页面。
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const docStatus = {{ doc.status|tojson }};
+const previewTaskId = {{ preview_task.id if preview_task else 'null' }};
+const previewTaskStatus = {{ (preview_task.status if preview_task else '')|tojson }};
+const currentTaskId = {{ current_task.id if current_task else 'null' }};
+const currentTaskStatus = {{ (current_task.status if current_task else '')|tojson }};
+const previewPendingNotice = document.getElementById("previewPendingNotice");
+
+function getActiveTaskMeta() {
+    if (currentTaskId && ["pending", "running"].includes(currentTaskStatus)) {
+        return {
+            taskId: currentTaskId,
+            label: "索引",
+        };
+    }
+    if (previewTaskId && ["pending", "running"].includes(previewTaskStatus)) {
+        return {
+            taskId: previewTaskId,
+            label: "预览",
+        };
+    }
+    return null;
+}
+
+async function pollActiveTask() {
+    const activeTask = getActiveTaskMeta();
+    if (!activeTask) return;
+
+    try {
+        const response = await fetch(`/api/index-tasks/${activeTask.taskId}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!data.success) return;
+
+        const status = data.task.status;
+        if (previewPendingNotice) {
+            previewPendingNotice.textContent = `${activeTask.label}任务运行中，当前状态：${status}，进度：${data.task.progress ?? 0}%`;
+        }
+        if (["completed", "failed"].includes(status)) {
+            window.location.reload();
+        }
+    } catch (error) {
+        console.warn("task polling failed", error);
+    }
+}
+
+if (getActiveTaskMeta() || ["previewing", "indexing"].includes(docStatus)) {
+    window.setInterval(pollActiveTask, 3000);
+}
+</script>
+{% endblock %}

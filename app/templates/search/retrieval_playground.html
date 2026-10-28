@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}检索工作台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .playground-shell {
+        padding: 24px 0;
+    }
+    .playground-panel {
+        background: linear-gradient(180deg, #f8fafc 0%, #eef4f7 100%);
+        border: 1px solid #dbe4ee;
+        border-radius: 24px;
+        padding: 20px;
+        box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+    }
+    .result-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container playground-shell">
+    <div class="playground-panel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1">检索工作台</h2>
+                <div class="text-muted">独立调试知识库召回效果，不依赖聊天页。</div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <form id="retrievalForm" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">知识库</label>
+                        <select class="form-select" name="knowledge_base_id" required>
+                            <option value="">请选择知识库</option>
+                            {% for kb in knowledge_bases %}
+                            <option value="{{ kb.id }}">{{ kb.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">召回模式</label>
+                        <select class="form-select" name="retrieval_mode">
+                            <option value="vector">语义检索</option>
+                            <option value="bm25">关键字检索</option>
+                            <option value="hybrid" selected>混合检索</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Top-K</label>
+                        <input type="number" class="form-control" name="top_k" value="10" min="1" max="50">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">查询内容</label>
+                        <input type="text" class="form-control" name="query" placeholder="输入问题或关键词" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">相似度阈值</label>
+                        <input type="number" class="form-control" name="score_threshold" step="0.01" placeholder="可选">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enableRerank" name="enable_rerank" checked>
+                            <label class="form-check-label" for="enableRerank">启用重排</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">重排模型</label>
+                        <select class="form-select" name="rerank_model" id="rerankModel">
+                            <option value="">默认模型</option>
+                            {% for model in rerank_models %}
+                            <option value="{{ model }}">{{ model }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary" id="runSearchButton">开始检索</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="searchSummary" class="d-none mb-3"></div>
+        <div id="searchResults" class="row g-3"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const retrievalForm = document.getElementById("retrievalForm");
+const searchResults = document.getElementById("searchResults");
+const searchSummary = document.getElementById("searchSummary");
+const rerankToggle = document.getElementById("enableRerank");
+const rerankModel = document.getElementById("rerankModel");
+const runSearchButton = document.getElementById("runSearchButton");
+
+function updateRerankState() {
+    rerankModel.disabled = !rerankToggle.checked;
+}
+
+function renderSummary(data) {
+    searchSummary.classList.remove("d-none");
+    searchSummary.innerHTML = `
+        <div class="alert alert-secondary mb-0">
+            知识库 ID：${data.knowledge_base_id}，召回模式：${data.retrieval_mode}，返回 ${data.total} 条结果。
+        </div>
+    `;
+}
+
+function renderResults(results) {
+    if (!results.length) {
+        searchResults.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-warning mb-0">没有检索到符合条件的结果。</div>
+            </div>
+        `;
+        return;
+    }
+
+    searchResults.innerHTML = results.map((result, index) => `
+        <div class="col-lg-6">
+            <div class="result-card h-100 p-3">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="fw-semibold">结果 ${index + 1}</div>
+                    <span class="badge bg-primary">Score ${Number(result.score ?? 0).toFixed(4)}</span>
+                </div>
+                <div class="small text-muted mb-2">
+                    ${result.document ? result.document.original_filename : "未关联文档"}
+                </div>
+                <div class="mb-3" style="white-space: pre-wrap;">${(result.text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+                <div class="d-flex gap-2 flex-wrap">
+                    ${result.source ? `<span class="badge bg-secondary">${result.source}</span>` : ""}
+                    ${result.chunk_index !== null && result.chunk_index !== undefined ? `<span class="badge bg-light text-dark">Chunk #${result.chunk_index}</span>` : ""}
+                    ${result.chunk_id ? `<span class="badge bg-light text-dark">Chunk ID ${result.chunk_id}</span>` : ""}
+                </div>
+            </div>
+        </div>
+    `).join("");
+}
+
+retrievalForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    runSearchButton.disabled = true;
+    searchResults.innerHTML = `
+        <div class="col-12">
+            <div class="alert alert-info mb-0">正在检索，请稍候...</div>
+        </div>
+    `;
+
+    const formData = new FormData(retrievalForm);
+    const payload = {
+        knowledge_base_id: Number(formData.get("knowledge_base_id")),
+        retrieval_mode: formData.get("retrieval_mode"),
+        query: formData.get("query"),
+        top_k: Number(formData.get("top_k") || 10),
+        enable_rerank: rerankToggle.checked,
+        rerank_model: rerankModel.value || null,
+        score_threshold: formData.get("score_threshold") || null,
+    };
+
+    try {
+        const response = await fetch("/api/retrieval/test", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || `请求失败: ${response.status}`);
+        }
+        renderSummary(data);
+        renderResults(data.results || []);
+    } catch (error) {
+        searchSummary.classList.add("d-none");
+        searchResults.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-danger mb-0">检索失败：${error.message}</div>
+            </div>
+        `;
+    } finally {
+        runSearchButton.disabled = false;
+    }
+});
+
+rerankToggle.addEventListener("change", updateRerankState);
+updateRerankState();
+</script>
+{% endblock %}

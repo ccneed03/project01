@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}编辑知识库{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1">编辑知识库</h2>
+            <div class="text-muted">更新基础信息和默认 embedding 模型。已有文档的独立索引配置不会自动被覆盖。</div>
+        </div>
+        <a href="{{ url_for('admin.knowledge_bases') }}" class="btn btn-outline-secondary">返回列表</a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <form method="POST" class="row g-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="col-md-6">
+                    <label class="form-label">知识库名称 *</label>
+                    <input type="text" class="form-control" name="name" value="{{ kb.name }}" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">默认 Embedding 模型 *</label>
+                    <select class="form-select" name="default_embedding_model" required>
+                        {% for model in embedding_models %}
+                        <option value="{{ model }}" {% if model == kb.default_embedding_model %}selected{% endif %}>{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">知识库描述</label>
+                    <textarea class="form-control" name="description" rows="3">{{ kb.description or '' }}</textarea>
+                </div>
+
+                <div class="col-12">
+                    <div class="alert alert-secondary mb-0">
+                        当前兼容说明：
+                        <ul class="mb-0 mt-2">
+                            <li>旧的切分和检索字段仍然保留在库中，但新文档上传流程将优先使用文档级配置。</li>
+                            <li>修改默认 Embedding 模型不会自动重建已有文档索引。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="col-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">保存修改</button>
+                    <a href="{{ url_for('admin.knowledge_bases') }}" class="btn btn-outline-secondary">取消</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

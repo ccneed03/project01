@@ -1,0 +1,122 @@
+{
+  "skus": [
+    {"sku_id": "SHOE-001", "product_name": "轻量跑鞋 白色 42码", "stock": 25, "reserved": 2, "warehouse": "WH-1"},
+    {"sku_id": "SHOE-002", "product_name": "轻量跑鞋 黑色 41码", "stock": 12, "reserved": 0, "warehouse": "WH-1"},
+    {"sku_id": "SHOE-003", "product_name": "越野跑鞋 灰色 43码", "stock": 8, "reserved": 1, "warehouse": "WH-2"},
+    {"sku_id": "BAG-001", "product_name": "通勤双肩包 深蓝色", "stock": 18, "reserved": 3, "warehouse": "WH-1"},
+    {"sku_id": "SOCK-001", "product_name": "运动短袜 三双装", "stock": 60, "reserved": 5, "warehouse": "WH-3"},
+    {"sku_id": "CUSTOM-001", "product_name": "定制刺绣运动鞋", "stock": 5, "reserved": 0, "warehouse": "WH-2"},
+    {"sku_id": "HAT-001", "product_name": "速干运动帽", "stock": 30, "reserved": 0, "warehouse": "WH-3"},
+    {"sku_id": "JACKET-001", "product_name": "轻薄防风外套 黑色 L码", "stock": 15, "reserved": 2, "warehouse": "WH-2"}
+  ],
+  "orders": [
+    {
+      "order_no": "202610280001",
+      "status": "delivered",
+      "paid_days_ago": 5,
+      "delivered_days_ago": 2,
+      "recipient_name": "张三",
+      "recipient_phone": "13800138000",
+      "address": "上海市浦东新区世纪大道 100 号",
+      "items": [
+        {"sku_id": "SHOE-001", "product_name": "轻量跑鞋 白色 42码", "category": "鞋", "quantity": 1, "unit_price": 299.0},
+        {"sku_id": "SOCK-001", "product_name": "运动短袜 三双装", "category": "袜", "quantity": 2, "unit_price": 39.0}
+      ]
+    },
+    {
+      "order_no": "202610280002",
+      "status": "delivered",
+      "paid_days_ago": 13,
+      "delivered_days_ago": 10,
+      "recipient_name": "张三",
+      "recipient_phone": "13800138000",
+      "address": "上海市浦东新区世纪大道 100 号",
+      "items": [
+        {"sku_id": "SHOE-002", "product_name": "轻量跑鞋 黑色 41码", "category": "鞋", "quantity": 1, "unit_price": 299.0}
+      ]
+    },
+    {
+      "order_no": "202610280003",
+      "status": "delivered",
+      "paid_days_ago": 4,
+      "delivered_days_ago": 1,
+      "recipient_name": "张三",
+      "recipient_phone": "13800138000",
+      "address": "上海市浦东新区世纪大道 100 号",
+      "items": [
+        {"sku_id": "CUSTOM-001", "product_name": "定制刺绣运动鞋", "category": "定制", "quantity": 1, "unit_price": 599.0}
+      ]
+    },
+    {
+      "order_no": "202610280004",
+      "status": "shipped",
+      "paid_days_ago": 4,
+      "delivered_days_ago": null,
+      "recipient_name": "张三",
+      "recipient_phone": "13800138000",
+      "address": "上海市浦东新区世纪大道 100 号",
+      "items": [
+        {"sku_id": "SHOE-003", "product_name": "越野跑鞋 灰色 43码", "category": "鞋", "quantity": 2, "unit_price": 359.0}
+      ]
+    },
+    {
+      "order_no": "202610280005",
+      "status": "delivered",
+      "paid_days_ago": 6,
+      "delivered_days_ago": 3,
+      "recipient_name": "张三",
+      "recipient_phone": "13800138000",
+      "address": "上海市浦东新区世纪大道 100 号",
+      "items": [
+        {"sku_id": "BAG-001", "product_name": "通勤双肩包 深蓝色", "category": "包", "quantity": 1, "unit_price": 259.0},
+        {"sku_id": "HAT-001", "product_name": "速干运动帽", "category": "帽", "quantity": 1, "unit_price": 89.0}
+      ]
+    },
+    {
+      "order_no": "202610280006",
+      "status": "delivered",
+      "owner": "other",
+      "paid_days_ago": 4,
+      "delivered_days_ago": 2,
+      "recipient_name": "李四",
+      "recipient_phone": "13900139000",
+      "address": "北京市朝阳区建国路 88 号",
+      "items": [
+        {"sku_id": "JACKET-001", "product_name": "轻薄防风外套 黑色 L码", "category": "服装", "quantity": 1, "unit_price": 399.0}
+      ]
+    },
+    {
+      "order_no": "202610280007",
+      "status": "delivered",
+      "paid_days_ago": 8,
+      "delivered_days_ago": 5,
+      "recipient_name": "张三",
+      "recipient_phone": "13800138000",
+      "address": "上海市浦东新区世纪大道 100 号",
+      "items": [
+        {"sku_id": "SHOE-001", "product_name": "轻量跑鞋 白色 42码", "category": "鞋", "quantity": 1, "unit_price": 299.0, "item_status": "returning"}
+      ]
+    },
+    {
+      "order_no": "202610280008",
+      "status": "paid",
+      "paid_days_ago": 1,
+      "delivered_days_ago": null,
+      "recipient_name": "张三",
+      "recipient_phone": "13800138000",
+      "address": "上海市浦东新区世纪大道 100 号",
+      "items": [
+        {"sku_id": "SOCK-001", "product_name": "运动短袜 三双装", "category": "袜", "quantity": 3, "unit_price": 39.0}
+      ]
+    }
+  ],
+  "shipments": [
+    {"order_no": "202610280001", "carrier": "顺丰速运", "tracking_no": "SF1234567890001", "status": "delivered", "last_event": "快件已由本人签收", "shipped_days_ago": 4, "delivered_days_ago": 2},
+    {"order_no": "202610280002", "carrier": "中通快递", "tracking_no": "ZT9876543210002", "status": "delivered", "last_event": "快件已签收", "shipped_days_ago": 12, "delivered_days_ago": 10},
+    {"order_no": "202610280003", "carrier": "顺丰速运", "tracking_no": "SF1234567890003", "status": "delivered", "last_event": "快件已由本人签收", "shipped_days_ago": 3, "delivered_days_ago": 1},
+    {"order_no": "202610280004", "carrier": "圆通速递", "tracking_no": "YT5555666670004", "status": "in_transit", "last_event": "快件已到达上海转运中心", "shipped_days_ago": 2, "delivered_days_ago": null},
+    {"order_no": "202610280005", "carrier": "京东物流", "tracking_no": "JD8888999900005", "status": "delivered", "last_event": "货物已交付", "shipped_days_ago": 5, "delivered_days_ago": 3},
+    {"order_no": "202610280006", "carrier": "顺丰速运", "tracking_no": "SF1234567890006", "status": "delivered", "last_event": "快件已由本人签收", "shipped_days_ago": 3, "delivered_days_ago": 2},
+    {"order_no": "202610280007", "carrier": "顺丰速运", "tracking_no": "SF1234567890007", "status": "delivered", "last_event": "快件已由本人签收", "shipped_days_ago": 7, "delivered_days_ago": 5}
+  ]
+}
