@@ -9,7 +9,6 @@ from datetime import datetime
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import TextLoader, PyMuPDFLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader
 from pymilvus import MilvusClient, DataType, Function, FunctionType
 from app.config import Config
 from app.models.document import Document
@@ -91,24 +90,33 @@ class DocumentService:
         file_type = doc.file_type
 
         if file_type == "txt":
+            from langchain_community.document_loaders import TextLoader
+
             loader = TextLoader(file_path, encoding="utf-8")
             docs = loader.load()
             return "\n\n".join([d.page_content for d in docs])
 
         elif file_type == "pdf":
+            from langchain_community.document_loaders import PyMuPDFLoader
+
             loader = PyMuPDFLoader(file_path)
             docs = loader.load()
             return "\n\n".join([d.page_content for d in docs])
 
         elif file_type in ["docx", "doc"]:
+            from langchain_community.document_loaders import (
+                UnstructuredWordDocumentLoader,
+            )
+
             loader = UnstructuredWordDocumentLoader(file_path)
             docs = loader.load()
             return "\n\n".join([d.page_content for d in docs])
 
         elif file_type == "md":
-            loader = UnstructuredMarkdownLoader(file_path)
-            docs = loader.load()
-            return "\n\n".join([d.page_content for d in docs])
+            # Markdown is already plain text. Reading it directly avoids a
+            # heavyweight optional `unstructured` dependency for the demo.
+            with open(file_path, "r", encoding="utf-8") as handle:
+                return handle.read()
 
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
@@ -218,6 +226,9 @@ class DocumentService:
                 "chunk_index": index,
                 "text": chunk,
                 "dense": vector,
+                "doc_type": "document",
+                "category": "",
+                "sku_id": "",
             }
             for index, (chunk, vector) in enumerate(zip(chunks, vectors))
         ]
@@ -241,7 +252,17 @@ class DocumentService:
         if client.has_collection(Config.MILVUS_COLLECTION):
             description = client.describe_collection(Config.MILVUS_COLLECTION)
             field_names = {field["name"] for field in description.get("fields", [])}
-            required = {"knowledge_base_id", "document_id", "chunk_index", "text", "dense", "sparse"}
+            required = {
+                "knowledge_base_id",
+                "document_id",
+                "chunk_index",
+                "text",
+                "dense",
+                "sparse",
+                "doc_type",
+                "category",
+                "sku_id",
+            }
             if not required.issubset(field_names):
                 raise ValueError(
                     f"Milvus collection '{Config.MILVUS_COLLECTION}' 已存在，但 schema 与 app 不兼容。"

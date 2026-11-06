@@ -31,16 +31,16 @@ class SearchProductArgs(BaseModel):
         default=None,
         min_length=1,
         max_length=128,
-        description='产品名或说明关键字，例如 "跑鞋"、"防风"、"速干"',
+        description='产品名或说明关键字，例如 "笔记本"、"降噪"、"4K"',
     )
     sku_id: str | None = Field(
         default=None,
-        description="商品 SKU 编号，例如 SHOE-001。精确匹配，优先级最高。",
+        description="商品 SKU 编号，例如 LAPTOP-001。精确匹配，优先级最高。",
     )
     category: str | None = Field(
         default=None,
         max_length=64,
-        description="商品分类，例如 鞋 / 包 / 袜 / 定制，可配合 query 一起使用。",
+        description="商品分类，例如 笔记本 / 手机 / 耳机 / 外设 / 定制 / 虚拟商品，可配合 query 一起使用。",
     )
 
 

@@ -22,11 +22,12 @@ from app.extensions import db
 from app.models.agent import AgentRun, PendingAction
 from app.models.assistant import Assistant, AssistantKnowledgeBaseConfig
 from app.models.chat import ChatMessage, ChatSession
-from app.models.commerce import Order, OrderItem, Product, ReturnRequest
+from app.models.commerce import Inventory, Order, OrderItem, Product, ReturnRequest
 from app.models.knowledge_base import KnowledgeBase
 from app.models.user import User
 from app.services.agent_service import AgentActionError, AgentService
 from app.services.after_sales_service import AfterSalesService
+from app.services.return_policy import ReturnPolicyEngine
 from app.tools.executor import ToolExecutor
 from app.tools.knowledge import KnowledgeSearchArgs, knowledge_search
 from app.tools.registry import build_default_registry
@@ -83,6 +84,7 @@ class AgentTestCase(unittest.TestCase):
         self.other.set_password("secret")
         db.session.add_all([self.user, self.other])
         db.session.commit()
+        ReturnPolicyEngine.seed_builtin_policies()
 
         self.assistant = Assistant(
             name="售后助手",
@@ -121,8 +123,8 @@ class AgentTestCase(unittest.TestCase):
         delivered_days_ago=2,
         status="delivered",
         item_status="normal",
-        category="鞋",
-        price=299.0,
+        category="笔记本",
+        price=4999.0,
     ) -> tuple[Order, OrderItem]:
         order = Order(
             order_no=order_no,
@@ -141,8 +143,8 @@ class AgentTestCase(unittest.TestCase):
         db.session.flush()
         item = OrderItem(
             order_id=order.id,
-            sku_id="SHOE-001",
-            product_name="轻量跑鞋",
+            sku_id="LAPTOP-001",
+            product_name="星云 Book 14 轻薄本",
             category=category,
             quantity=1,
             unit_price=price,
@@ -160,13 +162,30 @@ class AgentTestCase(unittest.TestCase):
             raw_arguments=json.dumps(arguments, ensure_ascii=False),
         )
 
+    def return_args(
+        self,
+        order: Order,
+        item: OrderItem,
+        *,
+        reason="不合适",
+        reason_code="no_longer_needed",
+        condition="unopened",
+    ) -> dict:
+        return {
+            "order_no": order.order_no,
+            "item_ids": [item.id],
+            "reason": reason,
+            "reason_code": reason_code,
+            "condition": condition,
+        }
+
     def make_product(
         self,
         *,
-        sku_id="SHOE-001",
-        product_name="轻量跑鞋 白色 42码",
-        category="鞋",
-        description="优质商品，材质与规格详见商品详情。",
+        sku_id="LAPTOP-001",
+        product_name="星云 Book 14 轻薄本",
+        category="笔记本",
+        description="14 英寸轻薄笔记本，适合办公和轻量视频剪辑。",
         return_note="自签收 7 天内支持无理由退货。",
     ) -> Product:
         product = Product(
@@ -175,8 +194,8 @@ class AgentTestCase(unittest.TestCase):
             category=category,
             brand="云步",
             description=description,
-            details={"材质": "工程网布 + EVA 中底", "尺码": "42"},
-            care_info="软毛刷蘸中性洗涤剂轻刷，阴凉晾干，勿机洗。",
+            details={"处理器": "Ryzen 7 8845HS", "内存": "16GB"},
+            care_info="避免高温和进液，使用原装 65W 适配器。",
             delivery_note="48 小时内发货，默认顺丰。",
             return_note=return_note,
         )
@@ -221,25 +240,30 @@ class AgentTestCase(unittest.TestCase):
     def test_search_product_by_sku(self):
         self.make_product()
         result = self.executor.execute(
-            self.call("search_product", {"sku_id": "shoe-001"}),
+            self.call("search_product", {"sku_id": "laptop-001"}),
             self.context,
             self.state,
         )
         self.assertTrue(result.ok)
         self.assertEqual(result.code, "OK")
         self.assertEqual(len(result.data["products"]), 1)
-        self.assertEqual(result.data["products"][0]["sku_id"], "SHOE-001")
-        self.assertIn("SHOE-001", result.display_text)
+        self.assertEqual(result.data["products"][0]["sku_id"], "LAPTOP-001")
+        self.assertIn("LAPTOP-001", result.display_text)
         self.assertEqual(
-            result.data["products"][0]["details"]["材质"], "工程网布 + EVA 中底"
+            result.data["products"][0]["details"]["处理器"], "Ryzen 7 8845HS"
         )
 
     def test_search_product_by_keyword(self):
-        self.make_product(sku_id="SHOE-001", product_name="轻量跑鞋 白色 42码")
-        self.make_product(sku_id="SHOE-002", product_name="轻量跑鞋 黑色 41码")
-        self.make_product(sku_id="BAG-001", product_name="通勤双肩包 深蓝色", category="包")
+        self.make_product(sku_id="LAPTOP-001", product_name="星云 Book 14 轻薄本")
+        self.make_product(sku_id="LAPTOP-002", product_name="星云 Book 16 创作本")
+        self.make_product(
+            sku_id="MONITOR-001",
+            product_name="视界 27U 4K 显示器",
+            category="显示器",
+            description="27 英寸 4K IPS 显示器。",
+        )
         result = self.executor.execute(
-            self.call("search_product", {"query": "跑鞋"}),
+            self.call("search_product", {"query": "笔记本"}),
             self.context,
             self.state,
         )
@@ -248,11 +272,11 @@ class AgentTestCase(unittest.TestCase):
         self.assertEqual(len(result.data["products"]), 2)
 
     def test_search_product_by_category(self):
-        self.make_product(sku_id="SHOE-001", category="鞋")
-        self.make_product(sku_id="SHOE-002", category="鞋")
-        self.make_product(sku_id="BAG-001", category="包")
+        self.make_product(sku_id="LAPTOP-001", category="笔记本")
+        self.make_product(sku_id="LAPTOP-002", category="笔记本")
+        self.make_product(sku_id="MONITOR-001", category="显示器")
         result = self.executor.execute(
-            self.call("search_product", {"category": "鞋"}),
+            self.call("search_product", {"category": "笔记本"}),
             self.context,
             self.state,
         )
@@ -260,15 +284,15 @@ class AgentTestCase(unittest.TestCase):
         self.assertEqual(len(result.data["products"]), 2)
 
     def test_search_product_description_fallback(self):
-        """商品没被订单/库存覆盖时，也可通过目录说明检索到。"""
-        self.make_product(sku_id="JACKET-001", product_name="轻薄防风外套 黑色 L码", category="服装")
+        """商品未出现在订单中时，也可通过目录说明检索到。"""
+        self.make_product(sku_id="HEADPHONE-001", product_name="声浪 Pro 头戴降噪耳机", category="耳机")
         result = self.executor.execute(
-            self.call("search_product", {"query": "外套"}),
+            self.call("search_product", {"query": "降噪耳机"}),
             self.context,
             self.state,
         )
         self.assertTrue(result.ok)
-        self.assertEqual(result.data["products"][0]["sku_id"], "JACKET-001")
+        self.assertEqual(result.data["products"][0]["sku_id"], "HEADPHONE-001")
 
     def test_search_product_not_found(self):
         result = self.executor.execute(
@@ -295,8 +319,8 @@ class AgentTestCase(unittest.TestCase):
             _product_filter_expr(None, None), 'doc_type == "product"'
         )
         self.assertEqual(
-            _product_filter_expr("鞋", "SHOE-001"),
-            'doc_type == "product" and category == "鞋" and sku_id == "SHOE-001"',
+            _product_filter_expr("笔记本", "LAPTOP-001"),
+            'doc_type == "product" and category == "笔记本" and sku_id == "LAPTOP-001"',
         )
         # quotes in attribute values are escaped, not injected
         self.assertEqual(
@@ -309,7 +333,7 @@ class AgentTestCase(unittest.TestCase):
 
         from app.models.knowledge_base import KnowledgeBase
 
-        self.make_product(sku_id="SHOE-001", category="鞋")
+        self.make_product(sku_id="LAPTOP-001", category="笔记本")
         kb = KnowledgeBase(name="产品库", description="语义检索", created_by=self.user.id)
         db.session.add(kb)
         db.session.commit()
@@ -328,13 +352,13 @@ class AgentTestCase(unittest.TestCase):
             side_effect=RuntimeError("Milvus 不可用"),
         ):
             result = self.executor.execute(
-                self.call("search_product", {"query": "跑鞋"}),
+                self.call("search_product", {"query": "笔记本"}),
                 context,
                 self.state,
             )
         self.assertTrue(result.ok)
         self.assertEqual(result.code, "OK")
-        self.assertEqual(result.data["products"][0]["sku_id"], "SHOE-001")
+        self.assertEqual(result.data["products"][0]["sku_id"], "LAPTOP-001")
 
     def test_search_product_uses_semantic_hits_when_retrieval_available(self):
         """向量层命中但内容不可信：只回落到 *权威目录* 按 sku_id 对齐。"""
@@ -342,7 +366,7 @@ class AgentTestCase(unittest.TestCase):
 
         from app.models.knowledge_base import KnowledgeBase
 
-        self.make_product(sku_id="SHOE-001", category="鞋")
+        self.make_product(sku_id="LAPTOP-001", category="笔记本")
         kb = KnowledgeBase(
             name="产品库", description="语义检索", created_by=self.user.id
         )
@@ -360,8 +384,8 @@ class AgentTestCase(unittest.TestCase):
         )
         hits = [
             {
-                "text": "轻量缓震跑鞋",
-                "sku_id": "SHOE-001",
+                "text": "适合视频剪辑的轻薄笔记本",
+                "sku_id": "LAPTOP-001",
                 "score": 0.9,
             }
         ]
@@ -370,13 +394,13 @@ class AgentTestCase(unittest.TestCase):
             return_value=hits,
         ):
             result = self.executor.execute(
-                self.call("search_product", {"query": "雨后路滑穿什么鞋"}),
+                self.call("search_product", {"query": "适合剪视频的笔记本"}),
                 context,
                 self.state,
             )
         self.assertTrue(result.ok)
         self.assertEqual(result.code, "OK")
-        self.assertEqual(result.data["products"][0]["sku_id"], "SHOE-001")
+        self.assertEqual(result.data["products"][0]["sku_id"], "LAPTOP-001")
 
     def test_product_index_defaults_to_assistant_kb(self):
         from scripts.index_products import resolve_knowledge_base
@@ -423,10 +447,10 @@ class AgentTestCase(unittest.TestCase):
             side_effect=RuntimeError("milvus down"),
         ):
             result = knowledge_search(
-                KnowledgeSearchArgs(query="这双鞋还能退吗？"),
+                KnowledgeSearchArgs(query="这台笔记本还能退吗？"),
                 context,
                 self.state,
-                self.call("knowledge_search", {"query": "这双鞋还能退吗？"}),
+                self.call("knowledge_search", {"query": "这台笔记本还能退吗？"}),
             )
 
         self.assertTrue(result.ok)
@@ -482,6 +506,43 @@ class AgentTestCase(unittest.TestCase):
         self.assertNotIn("degraded", result.data)
         self.assertEqual(result.sources[0]["document"]["original_filename"], "refund_policy.pdf")
 
+    def test_knowledge_search_faq_fallback_uses_electronics_document(self):
+        knowledge_base = KnowledgeBase(
+            name="售后政策",
+            created_by=self.user.id,
+            default_embedding_model="qwen3-embedding:0.6b",
+        )
+        db.session.add(knowledge_base)
+        db.session.commit()
+        context = AgentContext(
+            user_id=self.user.id,
+            session_id=self.chat_session.id,
+            trace_id="trace-test",
+            run_id="run-test",
+            assistant_id=self.assistant.id,
+            knowledge_base_id=knowledge_base.id,
+            permissions={"after_sales.read"},
+        )
+
+        with patch(
+            "app.services.retrieval_service.RetrievalService.search",
+            side_effect=RuntimeError("milvus down"),
+        ):
+            result = knowledge_search(
+                KnowledgeSearchArgs(query="软件激活码泄露了怎么办"),
+                context,
+                self.state,
+                self.call("knowledge_search", {"query": "软件激活码泄露了怎么办"}),
+            )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.code, "OK_DEGRADED")
+        self.assertEqual(
+            result.sources[0]["document"]["original_filename"],
+            "electronics_after_sales_faq.md",
+        )
+        self.assertIn("激活码", result.data["snippets"][0]["text"])
+
     def test_permission_denied_is_fuzzy(self):
         order, _ = self.make_order()
         denied_context = AgentContext(
@@ -512,11 +573,7 @@ class AgentTestCase(unittest.TestCase):
         result = self.executor.execute(
             self.call(
                 "prepare_return",
-                {
-                    "order_no": order.order_no,
-                    "item_ids": [item.id],
-                    "reason": "不合适",
-                },
+                self.return_args(order, item),
             ),
             self.context,
             self.state,
@@ -532,13 +589,13 @@ class AgentTestCase(unittest.TestCase):
         result = self.executor.execute(
             self.call(
                 "prepare_return",
-                {"order_no": order.order_no, "item_ids": [item.id]},
+                self.return_args(order, item),
             ),
             self.context,
             self.state,
         )
         self.assertFalse(result.ok)
-        self.assertEqual(result.code, "NOT_ELIGIBLE")
+        self.assertEqual(result.code, "RETURN_WINDOW_EXPIRED")
         self.assertEqual(PendingAction.query.count(), 0)
 
     def test_prepare_return_rejects_custom_category(self):
@@ -546,13 +603,170 @@ class AgentTestCase(unittest.TestCase):
         result = self.executor.execute(
             self.call(
                 "prepare_return",
+                self.return_args(order, item),
+            ),
+            self.context,
+            self.state,
+        )
+        self.assertFalse(result.ok)
+        self.assertEqual(result.code, "NO_REASON_NOT_ALLOWED")
+        self.assertEqual(PendingAction.query.count(), 0)
+
+    def test_prepare_return_rejects_opened_item_for_no_reason_request(self):
+        order, item = self.make_order()
+        result = self.executor.execute(
+            self.call(
+                "prepare_return",
+                self.return_args(order, item, condition="opened"),
+            ),
+            self.context,
+            self.state,
+        )
+        self.assertFalse(result.ok)
+        self.assertEqual(result.code, "ITEM_CONDITION_NOT_ELIGIBLE")
+        self.assertEqual(PendingAction.query.count(), 0)
+
+    def test_quality_issue_can_be_submitted_for_manual_review(self):
+        order, item = self.make_order(category="定制")
+        result = self.executor.execute(
+            self.call(
+                "prepare_return",
+                self.return_args(
+                    order,
+                    item,
+                    reason="收到的商品有破损",
+                    reason_code="damaged_on_arrival",
+                    condition="damaged",
+                ),
+            ),
+            self.context,
+            self.state,
+        )
+        self.assertTrue(result.ok)
+        self.assertEqual(result.code, "CONFIRMATION_REQUIRED")
+        action = result.pending_action
+        self.assertTrue(action["requires_review"])
+        self.assertEqual(action["decision_code"], "MANUAL_REVIEW_REQUIRED")
+        self.assertEqual(action["policy_version"], "2026.11")
+        self.assertTrue(action["confirmation_token"])
+        pending = db.session.get(PendingAction, result.pending_action_id)
+        self.assertEqual(
+            pending.payload_json["policy_decision"]["items"][0]["code"],
+            "MANUAL_REVIEW_REQUIRED",
+        )
+
+    def test_missing_executable_policy_is_rejected(self):
+        from app.models.commerce import ReturnPolicy
+
+        ReturnPolicy.query.delete()
+        db.session.commit()
+        order, item = self.make_order()
+        result = self.executor.execute(
+            self.call("prepare_return", self.return_args(order, item)),
+            self.context,
+            self.state,
+        )
+        self.assertFalse(result.ok)
+        self.assertEqual(result.code, "POLICY_UNAVAILABLE")
+        self.assertEqual(PendingAction.query.count(), 0)
+
+    def test_return_policy_golden_cases(self):
+        from pathlib import Path
+        from app.services.return_policy import ReturnPolicyEngine
+
+        cases = json.loads(
+            (
+                Path(__file__).resolve().parents[1]
+                / "data"
+                / "eval"
+                / "return_policy_cases.json"
+            ).read_text(encoding="utf-8")
+        )
+        for case in cases:
+            with self.subTest(case=case["name"]):
+                delivered_at = (
+                    datetime.now() - timedelta(days=case["delivered_days_ago"])
+                    if case["delivered_days_ago"] is not None
+                    else None
+                )
+                order = Order(
+                    order_no=f"EVAL-{case['name']}",
+                    user_id=self.user.id,
+                    status=case["status"],
+                    delivered_at=delivered_at,
+                )
+                item = OrderItem(
+                    sku_id="EVAL-SKU",
+                    product_name=case["name"],
+                    category=case["category"],
+                    quantity=1,
+                    unit_price=100.0,
+                    item_status=case["item_status"],
+                )
+                decision = ReturnPolicyEngine.evaluate(
+                    order=order,
+                    items=[item],
+                    condition=case["condition"],
+                    reason_code=case["reason_code"],
+                )
+                self.assertEqual(decision.code, case["expected_code"])
+                self.assertEqual(
+                    decision.requires_review,
+                    case["requires_review"],
+                )
+
+    def test_policy_text_and_executable_rules_use_same_version(self):
+        from pathlib import Path
+        from app.models.commerce import ReturnPolicy
+
+        root = Path(__file__).resolve().parents[1]
+        policy_text = (root / "data" / "policies" / "refund_policy.md").read_text(
+            encoding="utf-8"
+        )
+        versions = {
+            policy.policy_version
+            for policy in ReturnPolicy.query.filter_by(active=True).all()
+        }
+        self.assertTrue(versions)
+        for version in versions:
+            self.assertIn(f"政策版本：{version}", policy_text)
+
+    def test_markdown_policy_is_read_without_unstructured_dependency(self):
+        from pathlib import Path
+        from app.models.document import Document
+        from app.services.document_service import DocumentService
+
+        policy_file = (
+            Path(__file__).resolve().parents[1]
+            / "data"
+            / "policies"
+            / "refund_policy.md"
+        )
+        document = Document(
+            filename=policy_file.name,
+            original_filename=policy_file.name,
+            file_path=str(policy_file),
+            file_type="md",
+            file_size=policy_file.stat().st_size,
+            knowledge_base_id=1,
+            created_by=self.user.id,
+        )
+        text = DocumentService._extract_text(document)
+        self.assertIn("电子产品", text)
+        self.assertIn("政策版本：2026.11", text)
+
+    def test_prepare_return_requires_condition_and_reason_code(self):
+        order, item = self.make_order()
+        result = self.executor.execute(
+            self.call(
+                "prepare_return",
                 {"order_no": order.order_no, "item_ids": [item.id]},
             ),
             self.context,
             self.state,
         )
         self.assertFalse(result.ok)
-        self.assertEqual(result.code, "NOT_ELIGIBLE")
+        self.assertEqual(result.code, "INVALID_ARGUMENTS")
         self.assertEqual(PendingAction.query.count(), 0)
 
     def test_confirm_executes_once(self):
@@ -560,7 +774,7 @@ class AgentTestCase(unittest.TestCase):
         result = self.executor.execute(
             self.call(
                 "prepare_return",
-                {"order_no": order.order_no, "item_ids": [item.id]},
+                self.return_args(order, item),
             ),
             self.context,
             self.state,
@@ -605,7 +819,12 @@ class AgentTestCase(unittest.TestCase):
         db.session.commit()
         gateway = FakeGateway()
 
-        first = AgentService.confirm_action(pending_id, self.user.id, gateway=gateway)
+        first = AgentService.confirm_action(
+            pending_id,
+            self.user.id,
+            confirmation_token=result.pending_action["confirmation_token"],
+            gateway=gateway,
+        )
         self.assertTrue(first["success"])
         self.assertEqual(ReturnRequest.query.count(), 1)
         self.assertEqual(gateway.complete_calls, 1)
@@ -619,9 +838,14 @@ class AgentTestCase(unittest.TestCase):
         self.assertEqual(len(tool_messages), 1)
         self.assertIn("OK", tool_messages[0]["content"])
 
-        with self.assertRaises(AgentActionError) as raised:
-            AgentService.confirm_action(pending_id, self.user.id, gateway=gateway)
-        self.assertEqual(raised.exception.code, "ALREADY_PROCESSED")
+        replay = AgentService.confirm_action(
+            pending_id,
+            self.user.id,
+            confirmation_token=result.pending_action["confirmation_token"],
+            gateway=gateway,
+        )
+        self.assertTrue(replay["success"])
+        self.assertTrue(replay["idempotent_replay"])
         self.assertEqual(ReturnRequest.query.count(), 1)
 
     def test_cancel_does_not_execute(self):
@@ -629,7 +853,7 @@ class AgentTestCase(unittest.TestCase):
         result = self.executor.execute(
             self.call(
                 "prepare_return",
-                {"order_no": order.order_no, "item_ids": [item.id]},
+                self.return_args(order, item),
             ),
             self.context,
             self.state,
@@ -647,7 +871,7 @@ class AgentTestCase(unittest.TestCase):
         first = self.executor.execute(
             self.call(
                 "prepare_return",
-                {"order_no": order.order_no, "item_ids": [item.id], "reason": "不合适"},
+                self.return_args(order, item),
             ),
             self.context,
             self.state,
@@ -658,7 +882,7 @@ class AgentTestCase(unittest.TestCase):
         second = self.executor.execute(
             self.call(
                 "prepare_return",
-                {"order_no": order.order_no, "item_ids": [item.id], "reason": "不合适"},
+                self.return_args(order, item),
             ),
             self.context,
             self.state,
@@ -675,7 +899,7 @@ class AgentTestCase(unittest.TestCase):
         first = self.executor.execute(
             self.call(
                 "prepare_return",
-                {"order_no": order.order_no, "item_ids": [item.id], "reason": "不合适"},
+                self.return_args(order, item),
             ),
             self.context,
             self.state,
@@ -694,7 +918,7 @@ class AgentTestCase(unittest.TestCase):
         second = self.executor.execute(
             self.call(
                 "prepare_return",
-                {"order_no": order.order_no, "item_ids": [item.id], "reason": "不合适"},
+                self.return_args(order, item),
             ),
             self.context,
             self.state,
@@ -704,11 +928,7 @@ class AgentTestCase(unittest.TestCase):
 
     def test_prepare_while_pending_is_idempotent(self):
         order, item = self.make_order()
-        arguments = {
-            "order_no": order.order_no,
-            "item_ids": [item.id],
-            "reason": "不合适",
-        }
+        arguments = self.return_args(order, item)
         first = self.executor.execute(
             self.call("prepare_return", arguments), self.context, self.state
         )
@@ -724,7 +944,7 @@ class AgentTestCase(unittest.TestCase):
         result = self.executor.execute(
             self.call(
                 "prepare_return",
-                {"order_no": order.order_no, "item_ids": [item.id]},
+                self.return_args(order, item),
             ),
             self.context,
             self.state,
@@ -736,6 +956,105 @@ class AgentTestCase(unittest.TestCase):
         self.assertEqual(raised.exception.code, "NOT_FOUND")
         self.assertEqual(ReturnRequest.query.count(), 0)
 
+    def test_confirm_requires_token_bound_to_pending_action(self):
+        order, item = self.make_order()
+        result = self.executor.execute(
+            self.call("prepare_return", self.return_args(order, item)),
+            self.context,
+            self.state,
+        )
+        pending_id = result.pending_action_id
+
+        with self.assertRaises(AgentActionError) as missing:
+            AgentService.confirm_action(
+                pending_id,
+                self.user.id,
+                confirmation_token=None,
+                gateway=FakeGateway(),
+            )
+        self.assertEqual(missing.exception.code, "CONFIRMATION_TOKEN_INVALID")
+        self.assertEqual(ReturnRequest.query.count(), 0)
+
+        with self.assertRaises(AgentActionError) as tampered:
+            AgentService.confirm_action(
+                pending_id,
+                self.user.id,
+                confirmation_token="0" * 64,
+                gateway=FakeGateway(),
+            )
+        self.assertEqual(tampered.exception.code, "CONFIRMATION_TOKEN_INVALID")
+        self.assertEqual(ReturnRequest.query.count(), 0)
+
+    def test_stale_confirmation_is_rejected_after_item_changes(self):
+        order, item = self.make_order()
+        result = self.executor.execute(
+            self.call("prepare_return", self.return_args(order, item)),
+            self.context,
+            self.state,
+        )
+        pending_id = result.pending_action_id
+        item.item_status = "returning"
+        db.session.commit()
+
+        with self.assertRaises(AgentActionError) as raised:
+            AgentService.confirm_action(
+                pending_id,
+                self.user.id,
+                confirmation_token=result.pending_action["confirmation_token"],
+                gateway=FakeGateway(),
+            )
+        self.assertEqual(raised.exception.code, "ITEM_ALREADY_IN_RETURN")
+        self.assertEqual(ReturnRequest.query.count(), 0)
+        self.assertEqual(db.session.get(PendingAction, pending_id).status, "failed")
+
+    def test_stale_confirmation_is_rejected_after_policy_changes(self):
+        from app.models.commerce import ReturnPolicy
+
+        order, item = self.make_order()
+        result = self.executor.execute(
+            self.call("prepare_return", self.return_args(order, item)),
+            self.context,
+            self.state,
+        )
+        policy = ReturnPolicy.query.filter_by(
+            policy_version="2026.11",
+            category="*",
+        ).one()
+        policy.source_section = "测试期间政策来源发生变化"
+        db.session.commit()
+
+        with self.assertRaises(AgentActionError) as raised:
+            AgentService.confirm_action(
+                result.pending_action_id,
+                self.user.id,
+                confirmation_token=result.pending_action["confirmation_token"],
+                gateway=FakeGateway(),
+            )
+        self.assertEqual(raised.exception.code, "CONFIRMATION_STALE")
+        self.assertEqual(ReturnRequest.query.count(), 0)
+
+    def test_return_request_persists_policy_decision_snapshot(self):
+        order, item = self.make_order()
+        result = self.executor.execute(
+            self.call("prepare_return", self.return_args(order, item)),
+            self.context,
+            self.state,
+        )
+        AgentService.confirm_action(
+            result.pending_action_id,
+            self.user.id,
+            confirmation_token=result.pending_action["confirmation_token"],
+            gateway=FakeGateway(),
+        )
+        request = ReturnRequest.query.one()
+        self.assertEqual(request.status, "submitted")
+        self.assertEqual(request.policy_version, "2026.11")
+        self.assertTrue(request.decision_json["eligible"])
+        self.assertEqual(
+            request.decision_json["items"][0]["policy_version"],
+            "2026.11",
+        )
+
     def test_commit_return_is_not_exposed_to_model(self):
         names = {
             schema["function"]["name"]
@@ -743,6 +1062,8 @@ class AgentTestCase(unittest.TestCase):
         }
         self.assertNotIn("commit_return", names)
         self.assertIsNone(self.registry.get("commit_return"))
+        self.assertNotIn("check_inventory", names)
+        self.assertIsNone(self.registry.get("check_inventory"))
 
     def test_expired_action_is_rejected(self):
         order, item = self.make_order()
@@ -750,6 +1071,8 @@ class AgentTestCase(unittest.TestCase):
             order=order,
             item_ids=[item.id],
             reason="",
+            reason_code="no_longer_needed",
+            condition="unopened",
             user_id=self.user.id,
             session_id=self.chat_session.id,
             run_id="run-test",
@@ -813,7 +1136,7 @@ class AgentTestCase(unittest.TestCase):
     def test_runtime_pauses_at_confirmation_with_placeholder(self):
         order, item = self.make_order()
         arguments = json.dumps(
-            {"order_no": order.order_no, "item_ids": [item.id], "reason": "不合适"},
+            self.return_args(order, item),
             ensure_ascii=False,
         )
         turns = [
@@ -859,8 +1182,8 @@ class AgentTestCase(unittest.TestCase):
                     "type": "tool_call_delta",
                     "index": 0,
                     "id": f"call_{self.index}",
-                    "name": "check_inventory",
-                    "arguments": '{"sku_id": "SHOE-001"}',
+                    "name": "query_order",
+                    "arguments": "{}",
                 }
                 yield {"type": "finish", "reason": "tool_calls"}
 
@@ -878,13 +1201,14 @@ class AgentTestCase(unittest.TestCase):
 
         from scripts.seed_demo import (
             DATA_FILE,
+            prune_catalog,
             seed_orders,
             seed_shipments,
             upsert_inventory,
         )
 
         payload = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-        self.assertEqual(upsert_inventory(payload["skus"]), 8)
+        self.assertEqual(upsert_inventory(payload["skus"]), 9)
 
         created, skipped = seed_orders(
             payload["orders"],
@@ -907,6 +1231,29 @@ class AgentTestCase(unittest.TestCase):
         )
         self.assertEqual(created_again, 0)
         self.assertEqual(skipped_again, 8)
+
+        db.session.add(
+            Product(
+                sku_id="OLD-001",
+                product_name="旧演示商品",
+                category="旧分类",
+                description="应被新种子目录清理",
+            )
+        )
+        db.session.add(
+            Inventory(
+                sku_id="OLD-001",
+                product_name="旧演示商品",
+                stock=1,
+            )
+        )
+        db.session.commit()
+        pruned_products, pruned_inventory = prune_catalog(
+            [item["sku_id"] for item in payload["skus"]]
+        )
+        self.assertEqual((pruned_products, pruned_inventory), (1, 1))
+        self.assertIsNone(Product.query.filter_by(sku_id="OLD-001").first())
+        self.assertIsNone(Inventory.query.filter_by(sku_id="OLD-001").first())
 
     def test_save_state_by_run_id(self):
         run = AgentRun(
@@ -952,12 +1299,12 @@ class AgentTestCase(unittest.TestCase):
             user=self.user,
             session=self.chat_session,
             assistant=self.assistant,
-            query="这双鞋能退吗？",
+            query="这台笔记本能退吗？",
         )
         self.assertEqual(run.status, "running")
         self.assertEqual(context.knowledge_base_id, None)
         self.assertEqual(state.messages[0]["role"], "system")
-        self.assertEqual(state.messages[-1]["content"], "这双鞋能退吗？")
+        self.assertEqual(state.messages[-1]["content"], "这台笔记本能退吗？")
         self.assertIn("上一轮问题", [message["content"] for message in state.messages])
         self.assertEqual(ChatMessage.query.filter_by(session_id=self.chat_session.id).count(), 3)
 

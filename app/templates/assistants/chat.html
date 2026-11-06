@@ -91,6 +91,7 @@
     .confirmation-card h6 { margin: 0 0 6px; font-size: 15px; font-weight: 700; color: #92400e; }
     .confirmation-summary { color: #78350f; font-size: 14px; line-height: 1.6; }
     .confirmation-details { margin: 10px 0 0; padding-left: 18px; color: #57534e; font-size: 13px; line-height: 1.7; }
+    .confirmation-policy { margin-top: 10px; color: #475569; font-size: 12px; line-height: 1.6; }
     .confirmation-notice { margin-top: 10px; color: #a16207; font-size: 12px; }
     .confirmation-actions { display: flex; gap: 8px; margin-top: 12px; }
     .confirmation-actions button { border-radius: 10px; padding: 7px 14px; font-size: 13px; font-weight: 600; }
@@ -395,7 +396,7 @@ function addToolTrace(messageEl, name, detail, ok = true) {
     const dot = document.createElement("span");
     dot.className = "tool-dot";
     const text = document.createElement("span");
-    const label = { knowledge_search: "知识检索", query_order: "查询订单", query_logistics: "查询物流", check_inventory: "查询库存", prepare_return: "退货预检查" }[name] || name;
+    const label = { knowledge_search: "知识检索", query_order: "查询订单", query_logistics: "查询物流", search_product: "查询商品", prepare_return: "退货预检查" }[name] || name;
     text.textContent = `${label}：${(detail || "").slice(0, 220)}`;
     item.append(dot, text);
     trace.appendChild(item);
@@ -437,6 +438,15 @@ function renderConfirmationCard(messageEl, action) {
         card.appendChild(list);
     }
 
+    if (action.policy_version || action.decision_code) {
+        const policy = document.createElement("div");
+        policy.className = "confirmation-policy";
+        const versionText = action.policy_version ? `政策版本 ${action.policy_version}` : "政策版本未知";
+        const reviewText = action.requires_review ? " · 提交后需人工核验" : "";
+        policy.textContent = `${versionText}${reviewText}`;
+        card.appendChild(policy);
+    }
+
     const notice = document.createElement("div");
     notice.className = "confirmation-notice";
     notice.textContent = action.notice || "确认后才会执行，取消不会产生任何变更。";
@@ -459,13 +469,13 @@ function renderConfirmationCard(messageEl, action) {
     result.className = "confirmation-result";
     card.appendChild(result);
 
-    confirmBtn.addEventListener("click", () => handleAction(action.action_id, "confirm", card));
-    cancelBtn.addEventListener("click", () => handleAction(action.action_id, "cancel", card));
+    confirmBtn.addEventListener("click", () => handleAction(action, "confirm", card));
+    cancelBtn.addEventListener("click", () => handleAction(action, "cancel", card));
     bubble.appendChild(card);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-async function handleAction(actionId, mode, card) {
+async function handleAction(action, mode, card) {
     const buttons = card.querySelectorAll(".confirmation-actions button");
     const resultEl = card.querySelector(".confirmation-result");
     buttons.forEach((button) => { button.disabled = true; });
@@ -473,10 +483,17 @@ async function handleAction(actionId, mode, card) {
     resultEl.textContent = mode === "confirm" ? "正在执行..." : "正在取消...";
 
     try {
-        const response = await fetch(`/api/agent-actions/${actionId}/${mode}`, {
+        const requestOptions = {
             method: "POST",
             headers: { "X-CSRFToken": CSRF_TOKEN },
-        });
+        };
+        if (mode === "confirm") {
+            requestOptions.headers["Content-Type"] = "application/json";
+            requestOptions.body = JSON.stringify({
+                confirmation_token: action.confirmation_token || "",
+            });
+        }
+        const response = await fetch(`/api/agent-actions/${action.action_id}/${mode}`, requestOptions);
         const data = await response.json();
         if (!response.ok || !data.success) {
             resultEl.classList.add("error");

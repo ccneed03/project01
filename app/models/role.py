@@ -83,7 +83,7 @@ DEFAULT_PERMISSIONS = [
     {"name": "chat.read", "resource": "chat", "action": "read", "description": "查看对话"},
     {"name": "chat.write", "resource": "chat", "action": "write", "description": "管理对话"},
     # Demo after-sales permissions
-    {"name": "after_sales.read", "resource": "after_sales", "action": "read", "description": "查询订单、物流、库存"},
+    {"name": "after_sales.read", "resource": "after_sales", "action": "read", "description": "查询订单、物流和商品"},
     {"name": "after_sales.write", "resource": "after_sales", "action": "write", "description": "发起售后动作"},
 ]
 

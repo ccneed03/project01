@@ -19,7 +19,11 @@ from app.extensions import db
 from app.models.knowledge_base import KnowledgeBase
 from app.tools.base import ToolResult
 
-POLICY_FILE = Path(__file__).resolve().parents[2] / "data" / "policies" / "refund_policy.md"
+POLICY_DIR = Path(__file__).resolve().parents[2] / "data" / "policies"
+POLICY_FILES = [
+    POLICY_DIR / "refund_policy.md",
+    POLICY_DIR / "electronics_after_sales_faq.md",
+]
 
 # Small, explicit keyword table for the demo fallback.  This is intentionally
 # not a production search engine; it only needs to retrieve the right section
@@ -34,9 +38,6 @@ POLICY_KEYWORDS: dict[str, float] = {
     "7 天": 4,
     "签收": 3,
     "定制": 4,
-    "内衣": 4,
-    "袜子": 4,
-    "袜": 3,
     "虚拟": 4,
     "运费": 3,
     "到账": 3,
@@ -49,6 +50,15 @@ POLICY_KEYWORDS: dict[str, float] = {
     "能退": 3,
     "退吗": 2,
     "退货期": 4,
+    "电子": 4,
+    "激活": 5,
+    "序列号": 3,
+    "软件": 4,
+    "授权": 4,
+    "激活码": 5,
+    "保修": 3,
+    "配件": 3,
+    "拆封": 3,
     "退": 1,
 }
 
@@ -61,23 +71,46 @@ class KnowledgeSearchArgs(BaseModel):
 
 
 def _policy_sections() -> list[dict[str, Any]]:
-    """Read the demo policy and split it by level-2 headings."""
-    if not POLICY_FILE.exists():
-        return []
-
-    text = POLICY_FILE.read_text(encoding="utf-8")
-    matches = list(re.finditer(r"(?m)^##\s+(.+?)\s*$", text))
-    if not matches:
-        stripped = text.strip()
-        return [{"title": "售后与退货政策", "text": stripped}] if stripped else []
-
+    """Read all demo policy files and split them by level-2 headings."""
     sections: list[dict[str, Any]] = []
-    for position, match in enumerate(matches):
-        start = match.start()
-        end = matches[position + 1].start() if position + 1 < len(matches) else len(text)
-        body = text[start:end].strip()
-        if body:
-            sections.append({"title": match.group(1).strip(), "text": body})
+    for policy_file in POLICY_FILES:
+        if not policy_file.exists():
+            continue
+        text = policy_file.read_text(encoding="utf-8")
+        document = {
+            "filename": policy_file.name,
+            "original_filename": policy_file.name,
+            "source": "local_fallback",
+        }
+        matches = list(re.finditer(r"(?m)^##\s+(.+?)\s*$", text))
+        if not matches:
+            stripped = text.strip()
+            if stripped:
+                sections.append(
+                    {
+                        "title": "电子产品售后政策",
+                        "text": stripped,
+                        "document": document,
+                    }
+                )
+            continue
+
+        for position, match in enumerate(matches):
+            start = match.start()
+            end = (
+                matches[position + 1].start()
+                if position + 1 < len(matches)
+                else len(text)
+            )
+            body = text[start:end].strip()
+            if body:
+                sections.append(
+                    {
+                        "title": match.group(1).strip(),
+                        "text": body,
+                        "document": document,
+                    }
+                )
     return sections
 
 
@@ -136,15 +169,10 @@ def _search_local_policy(query: str, top_k: int) -> list[dict[str, Any]]:
 
     scored.sort(key=lambda item: item[0], reverse=True)
     max_score = scored[0][0] or 1.0
-    document = {
-        "filename": POLICY_FILE.name,
-        "original_filename": POLICY_FILE.name,
-        "source": "local_fallback",
-    }
     return [
         {
             "text": section["text"],
-            "document": document,
+            "document": section["document"],
             "chunk_index": position,
             "score": round(score / max_score, 4),
         }

@@ -230,19 +230,52 @@ class AgentService:
             db.session.commit()
 
     @staticmethod
-    def confirm_action(action_id: int, user_id: int, gateway=None) -> dict[str, Any]:
+    def confirm_action(
+        action_id: int,
+        user_id: int,
+        confirmation_token: str | None = None,
+        gateway=None,
+    ) -> dict[str, Any]:
         """Execute a PendingAction exactly once and produce the final answer."""
         pending = db.session.get(PendingAction, action_id)
         if not pending or pending.user_id != user_id:
             raise AgentActionError("NOT_FOUND", "确认动作不存在", 404)
 
         now = datetime.now()
+        if pending.status == "success" and pending.result_json:
+            if not AfterSalesService.verify_confirmation_token(
+                pending, confirmation_token
+            ):
+                raise AgentActionError(
+                    "CONFIRMATION_TOKEN_INVALID",
+                    "确认内容与当前动作不匹配，请刷新确认卡片后重试",
+                    409,
+                )
+            display_text = pending.result_json.get("display_text") or "申请已提交"
+            return {
+                "success": True,
+                "status": "success",
+                "action_id": pending.id,
+                "display_text": display_text,
+                "response": display_text,
+                "run_id": pending.run_id,
+                "session_id": pending.session_id,
+                "idempotent_replay": True,
+            }
         if pending.status != "pending":
             raise AgentActionError("ALREADY_PROCESSED", "该动作已处理或已取消", 409)
         if pending.expires_at and pending.expires_at < now:
             pending.status = "expired"
             db.session.commit()
             raise AgentActionError("EXPIRED", "确认已过期，请重新发起", 410)
+        if not AfterSalesService.verify_confirmation_token(
+            pending, confirmation_token
+        ):
+            raise AgentActionError(
+                "CONFIRMATION_TOKEN_INVALID",
+                "确认内容与当前动作不匹配，请刷新确认卡片后重试",
+                409,
+            )
 
         # Atomic transition prevents double clicks / parallel requests from
         # executing the same refund twice.
@@ -465,6 +498,9 @@ class AgentService:
     def serialize_pending(pending: PendingAction) -> dict[str, Any]:
         display = dict(pending.display_json or {})
         display["action_id"] = pending.id
+        display["confirmation_token"] = AfterSalesService.confirmation_token(
+            pending
+        )
         display.setdefault("action_type", pending.action_type)
         display.setdefault(
             "expires_at",

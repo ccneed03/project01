@@ -1,102 +1,168 @@
 {
   "skus": [
-    {"sku_id": "SHOE-001", "product_name": "轻量跑鞋 白色 42码", "stock": 25, "reserved": 2, "warehouse": "WH-1"},
-    {"sku_id": "SHOE-002", "product_name": "轻量跑鞋 黑色 41码", "stock": 12, "reserved": 0, "warehouse": "WH-1"},
-    {"sku_id": "SHOE-003", "product_name": "越野跑鞋 灰色 43码", "stock": 8, "reserved": 1, "warehouse": "WH-2"},
-    {"sku_id": "BAG-001", "product_name": "通勤双肩包 深蓝色", "stock": 18, "reserved": 3, "warehouse": "WH-1"},
-    {"sku_id": "SOCK-001", "product_name": "运动短袜 三双装", "stock": 60, "reserved": 5, "warehouse": "WH-3"},
-    {"sku_id": "CUSTOM-001", "product_name": "定制刺绣运动鞋", "stock": 5, "reserved": 0, "warehouse": "WH-2"},
-    {"sku_id": "HAT-001", "product_name": "速干运动帽", "stock": 30, "reserved": 0, "warehouse": "WH-3"},
-    {"sku_id": "JACKET-001", "product_name": "轻薄防风外套 黑色 L码", "stock": 15, "reserved": 2, "warehouse": "WH-2"}
+    {"sku_id": "LAPTOP-001", "product_name": "星云 Book 14 轻薄本", "stock": 18, "reserved": 2, "warehouse": "WH-E1"},
+    {"sku_id": "PHONE-001", "product_name": "星环 X6 5G 手机 256GB", "stock": 26, "reserved": 3, "warehouse": "WH-E1"},
+    {"sku_id": "TABLET-001", "product_name": "星云 Pad 11 平板电脑", "stock": 14, "reserved": 1, "warehouse": "WH-E1"},
+    {"sku_id": "MONITOR-001", "product_name": "视界 27U 4K 显示器", "stock": 9, "reserved": 2, "warehouse": "WH-E2"},
+    {"sku_id": "HEADPHONE-001", "product_name": "声浪 Pro 头戴降噪耳机", "stock": 32, "reserved": 4, "warehouse": "WH-E2"},
+    {"sku_id": "KEYBOARD-001", "product_name": "极光 K87 机械键盘", "stock": 41, "reserved": 5, "warehouse": "WH-E3"},
+    {"sku_id": "MOUSE-001", "product_name": "轻羽 M2 无线鼠标", "stock": 55, "reserved": 6, "warehouse": "WH-E3"},
+    {"sku_id": "CUSTOM-001", "product_name": "定制刻字移动硬盘 1TB", "stock": 7, "reserved": 0, "warehouse": "WH-E2"},
+    {"sku_id": "DIGITAL-001", "product_name": "ProCam 视频编辑软件一年授权", "stock": 999, "reserved": 0, "warehouse": "DIGITAL"}
   ],
   "products": [
     {
-      "sku_id": "SHOE-001",
-      "product_name": "轻量跑鞋 白色 42码",
-      "category": "鞋",
-      "brand": "云步",
-      "description": "轻量缓震跑鞋，工程网布鞋面透气舒适，回弹 EVA 中底适合日常慢跑与通勤，白色百搭。",
-      "details": {"材质": "工程网布 + EVA 中底", "适用场景": "日常慢跑 / 通勤", "尺码": "42"},
-      "care_info": "可用软毛刷蘸中性洗涤剂轻刷，阴凉处晾干；勿机洗、勿曝晒、勿漂白。",
-      "delivery_note": "48 小时内发货，默认顺丰，偏远地区 3-5 天。",
-      "return_note": "未穿着、吊牌完好，自签收 7 天内支持无理由退货。"
+      "sku_id": "LAPTOP-001",
+      "product_name": "星云 Book 14 轻薄本",
+      "category": "笔记本",
+      "brand": "星云",
+      "description": "14 英寸 2.8K OLED 轻薄笔记本，适合办公、学习和轻量视频剪辑。采用低功耗处理器，整机约 1.28kg。",
+      "details": {
+        "处理器": "Ryzen 7 8845HS",
+        "内存": "16GB LPDDR5",
+        "存储": "1TB NVMe SSD",
+        "屏幕": "14 英寸 2.8K OLED 120Hz",
+        "电池": "65Wh，典型续航约 10 小时",
+        "接口": "USB-C x2、USB-A x2、HDMI 2.1、3.5mm 耳机口"
+      },
+      "care_info": "使用原装 65W 适配器；避免高温、进液和长时间满负载遮挡散热孔；清洁屏幕时使用超细纤维布。",
+      "delivery_note": "顺丰发货，含 65W 适配器、USB-C 线、快速指南和保修卡。",
+      "return_note": "已激活系统、存在磕碰进液或配件不齐时不支持无理由退货；未激活且包装完整可在签收 7 天内申请。"
     },
     {
-      "sku_id": "SHOE-002",
-      "product_name": "轻量跑鞋 黑色 41码",
-      "category": "鞋",
-      "brand": "云步",
-      "description": "与 SHOE-001 同系列的黑色轻量跑鞋，41 码，低调耐脏，适合日常慢跑与通勤。",
-      "details": {"材质": "工程网布 + EVA 中底", "适用场景": "日常慢跑 / 通勤", "尺码": "41"},
-      "care_info": "可用软毛刷蘸中性洗涤剂轻刷，阴凉处晾干；勿机洗、勿曝晒。",
-      "delivery_note": "48 小时内发货，默认顺丰。",
-      "return_note": "未穿着、吊牌完好，自签收 7 天内支持无理由退货。"
+      "sku_id": "PHONE-001",
+      "product_name": "星环 X6 5G 手机 256GB",
+      "category": "手机",
+      "brand": "星环",
+      "description": "6.7 英寸高刷屏手机，支持 5G、双卡和 67W 快充，主摄支持光学防抖，电池容量 5000mAh。",
+      "details": {
+        "屏幕": "6.7 英寸 1.5K 120Hz",
+        "存储": "12GB + 256GB",
+        "相机": "5000 万像素 OIS 主摄",
+        "电池": "5000mAh",
+        "充电": "67W 有线快充",
+        "网络": "5G 双卡双待"
+      },
+      "care_info": "使用原装充电器，避免在高温阳光下长时间使用；清洁前请断开充电线。",
+      "delivery_note": "顺丰发货，含手机、67W 充电器、数据线和取卡针。",
+      "return_note": "手机激活、账号锁定未解除或屏幕出现人为损伤时不支持无理由退货。"
     },
     {
-      "sku_id": "SHOE-003",
-      "product_name": "越野跑鞋 灰色 43码",
-      "category": "鞋",
-      "brand": "云步",
-      "description": "越野跑鞋，防滑橡胶大底抓地力强，适合山路与湿滑路面，灰色 43 码。",
-      "details": {"材质": "皮革 + 橡胶防滑大底", "适用场景": "越野 / 户外徒步", "尺码": "43"},
-      "care_info": "泥污用清水冲洗后阴干，避免强光直射与高温烘烤。",
-      "delivery_note": "48 小时内发货，默认顺丰。",
-      "return_note": "未穿着、吊牌完好，自签收 7 天内支持无理由退货。"
+      "sku_id": "TABLET-001",
+      "product_name": "星云 Pad 11 平板电脑",
+      "category": "平板",
+      "brand": "星云",
+      "description": "11 英寸 2.5K 平板电脑，支持手写笔和磁吸键盘，适合阅读、网课和轻办公。",
+      "details": {
+        "屏幕": "11 英寸 2.5K 90Hz",
+        "存储": "8GB + 128GB",
+        "电池": "8000mAh",
+        "接口": "USB-C",
+        "扩展": "支持磁吸键盘和主动式手写笔"
+      },
+      "care_info": "避免压折和进液；手写笔长期不用时建议每三个月充电一次。",
+      "delivery_note": "平板主机发货，手写笔和键盘需单独购买。",
+      "return_note": "屏幕或后盖出现划痕、设备已绑定账号且未退出时不支持无理由退货。"
     },
     {
-      "sku_id": "BAG-001",
-      "product_name": "通勤双肩包 深蓝色",
-      "category": "包",
-      "brand": "云步",
-      "description": "大容量通勤双肩包，防泼水面料，独立 15 寸笔记本隔层，深蓝色。",
-      "details": {"材质": "尼龙防泼水面料", "容量": "约 25L", "适用场景": "通勤 / 短途出行"},
-      "care_info": "湿布擦拭即可，收纳时保持干燥。",
-      "delivery_note": "48 小时内发货。",
-      "return_note": "未使用、标签完好，自签收 7 天内支持无理由退货。"
+      "sku_id": "MONITOR-001",
+      "product_name": "视界 27U 4K 显示器",
+      "category": "显示器",
+      "brand": "视界",
+      "description": "27 英寸 4K IPS 显示器，支持 99% sRGB、Type-C 65W 反向供电和多角度人体工学支架。",
+      "details": {
+        "尺寸": "27 英寸",
+        "分辨率": "3840 x 2160",
+        "面板": "IPS",
+        "色域": "99% sRGB",
+        "接口": "HDMI x2、DisplayPort、Type-C 65W、USB Hub"
+      },
+      "care_info": "安装和移动时托住底座；清洁应在断电后进行；Type-C 反向供电需要兼容的线材。",
+      "delivery_note": "含显示器、底座、支架、电源线、HDMI 线及校准报告。",
+      "return_note": "个人原因退货需要包装、配件和校准报告完整；签收 7 天内可申请。"
     },
     {
-      "sku_id": "SOCK-001",
-      "product_name": "运动短袜 三双装",
-      "category": "袜",
-      "brand": "云步",
-      "description": "运动短袜三双装，吸湿排汗面料，脚背透气网眼，适合跑步与日常穿着。",
-      "details": {"材质": "棉 + 氨纶", "适用场景": "跑步 / 日常", "尺码": "均码 38-43"},
-      "care_info": "可机洗，建议翻面低温洗涤，勿漂白。",
-      "delivery_note": "48 小时内发货。",
-      "return_note": "未拆封、不影响二次销售，自签收 7 天内支持无理由退货。"
+      "sku_id": "HEADPHONE-001",
+      "product_name": "声浪 Pro 头戴降噪耳机",
+      "category": "耳机",
+      "brand": "声浪",
+      "description": "头戴式蓝牙耳机，支持自适应主动降噪、双设备连接和约 35 小时续航。",
+      "details": {
+        "连接": "蓝牙 5.3，支持双设备",
+        "降噪": "自适应主动降噪",
+        "续航": "开启降噪约 30 小时",
+        "充电": "USB-C",
+        "重量": "约 260g"
+      },
+      "care_info": "耳罩可用微湿软布擦拭，禁止水洗；进入高温环境时请关闭充电。",
+      "delivery_note": "含耳机、硬质收纳包、USB-C 线、3.5mm 音频线和说明书。",
+      "return_note": "耳罩因使用产生污渍、配件缺失时不支持无理由退货。"
+    },
+    {
+      "sku_id": "KEYBOARD-001",
+      "product_name": "极光 K87 机械键盘",
+      "category": "外设",
+      "brand": "极光",
+      "description": "87 键三模机械键盘，支持蓝牙、2.4G 和 USB-C 有线连接，采用热插拔轴座和 PBT 键帽。",
+      "details": {
+        "配列": "87 键 TKL",
+        "连接": "蓝牙 / 2.4G / USB-C",
+        "轴体": "线性轴，热插拔",
+        "键帽": "PBT 双色注塑",
+        "电池": "4000mAh"
+      },
+      "care_info": "拔插轴体前断电；键帽可拆下清洗并完全晾干后再装回。",
+      "delivery_note": "含键盘、USB-C 线、2.4G 接收器、拔键拔轴器和说明书。",
+      "return_note": "键帽拆装造成划痕、进液或焊盘损伤时，质量问题需人工核验。"
+    },
+    {
+      "sku_id": "MOUSE-001",
+      "product_name": "轻羽 M2 无线鼠标",
+      "category": "外设",
+      "brand": "轻羽",
+      "description": "轻量双模无线鼠标，支持蓝牙和 2.4G 连接，静音微动，适合办公和移动使用。",
+      "details": {
+        "连接": "蓝牙 / 2.4G",
+        "DPI": "800-4000 可调",
+        "电池": "内置可充电电池",
+        "重量": "约 68g",
+        "按键": "静音微动"
+      },
+      "care_info": "光学传感器区域避免灰尘遮挡；长期不用建议每三个月充电一次。",
+      "delivery_note": "含鼠标、USB-C 充电线和 2.4G 接收器。",
+      "return_note": "表面严重油污、脚垫磨损或配件缺失时不支持无理由退货。"
     },
     {
       "sku_id": "CUSTOM-001",
-      "product_name": "定制刺绣运动鞋",
+      "product_name": "定制刻字移动硬盘 1TB",
       "category": "定制",
-      "brand": "云步",
-      "description": "支持脚面个性化刺绣的定制运动鞋，制作周期较长，售出后不退不换。",
-      "details": {"材质": "定制面料", "适用场景": "日常", "制作周期": "7-10 天"},
-      "care_info": "刺绣区域勿刮蹭，按常规运动鞋方式清洁。",
-      "delivery_note": "定制商品制作完成后发出，制作周期 7-10 天。",
-      "return_note": "定制商品不支持无理由退换，如属质量问题请联系客服处理。"
+      "brand": "星存",
+      "description": "1TB USB 3.2 Type-C 移动固态硬盘，提供激光刻字定制服务，适合企业礼品和个人标识。",
+      "details": {
+        "容量": "1TB",
+        "接口": "USB 3.2 Gen 2 Type-C",
+        "顺序读取": "最高约 1050MB/s",
+        "定制内容": "最多 12 个英文字符或 8 个中文字符"
+      },
+      "care_info": "读写过程中不要拔出；长期保存前建议备份；激光刻字区域避免硬物刮擦。",
+      "delivery_note": "刻字制作约 2-3 个工作日，完成后顺丰发货，含 Type-C 数据线。",
+      "return_note": "定制刻字商品不支持无理由退货；到货破损、无法识别或功能异常可在签收 7 天内提交人工核验申请。"
     },
     {
-      "sku_id": "HAT-001",
-      "product_name": "速干运动帽",
-      "category": "帽",
-      "brand": "云步",
-      "description": "速干运动帽，轻量透气面料，后方可调节松紧，适合跑步与户外运动。",
-      "details": {"材质": "速干聚酯纤维", "适用场景": "跑步 / 户外", "调节": "后部可调节扣"},
-      "care_info": "手洗或机洗均可，低温干燥，避免高温熨烫。",
-      "delivery_note": "48 小时内发货。",
-      "return_note": "未使用、标签完好，自签收 7 天内支持无理由退货。"
-    },
-    {
-      "sku_id": "JACKET-001",
-      "product_name": "轻薄防风外套 黑色 L码",
-      "category": "服装",
-      "brand": "云步",
-      "description": "轻薄防风外套，防风防泼水，可收纳便携，适合春秋季节与户外出行，黑色 L 码。",
-      "details": {"材质": "锦纶防泼水面料", "适用场景": "春秋 / 户外", "尺码": "L"},
-      "care_info": "机洗低温，装入网袋，勿烘干、勿干洗。",
-      "delivery_note": "48 小时内发货。",
-      "return_note": "未穿着、吊牌完好，自签收 7 天内支持无理由退货。"
+      "sku_id": "DIGITAL-001",
+      "product_name": "ProCam 视频编辑软件一年授权",
+      "category": "虚拟商品",
+      "brand": "ProCam",
+      "description": "面向内容创作者的一年期视频编辑软件授权，支持 4K 时间线、云端素材同步和桌面端导出。",
+      "details": {
+        "授权期限": "12 个月",
+        "设备数": "同账号最多 2 台",
+        "交付方式": "订单完成后发送激活码",
+        "系统": "Windows 11 / macOS 13 及以上"
+      },
+      "care_info": "激活码仅限绑定账号使用，请勿公开分享；更换设备前先在旧设备退出授权。",
+      "delivery_note": "付款成功后 5 分钟内发送至订单预留邮箱，通常无需物流。",
+      "return_note": "数字授权一经激活即不可退回；未激活且激活码未泄露时请联系人工客服处理。"
     }
   ],
   "orders": [
@@ -109,8 +175,8 @@
       "recipient_phone": "13800138000",
       "address": "上海市浦东新区世纪大道 100 号",
       "items": [
-        {"sku_id": "SHOE-001", "product_name": "轻量跑鞋 白色 42码", "category": "鞋", "quantity": 1, "unit_price": 299.0},
-        {"sku_id": "SOCK-001", "product_name": "运动短袜 三双装", "category": "袜", "quantity": 2, "unit_price": 39.0}
+        {"sku_id": "LAPTOP-001", "product_name": "星云 Book 14 轻薄本", "category": "笔记本", "quantity": 1, "unit_price": 4999.0},
+        {"sku_id": "HEADPHONE-001", "product_name": "声浪 Pro 头戴降噪耳机", "category": "耳机", "quantity": 1, "unit_price": 799.0}
       ]
     },
     {
@@ -122,7 +188,7 @@
       "recipient_phone": "13800138000",
       "address": "上海市浦东新区世纪大道 100 号",
       "items": [
-        {"sku_id": "SHOE-002", "product_name": "轻量跑鞋 黑色 41码", "category": "鞋", "quantity": 1, "unit_price": 299.0}
+        {"sku_id": "PHONE-001", "product_name": "星环 X6 5G 手机 256GB", "category": "手机", "quantity": 1, "unit_price": 3299.0}
       ]
     },
     {
@@ -134,7 +200,7 @@
       "recipient_phone": "13800138000",
       "address": "上海市浦东新区世纪大道 100 号",
       "items": [
-        {"sku_id": "CUSTOM-001", "product_name": "定制刺绣运动鞋", "category": "定制", "quantity": 1, "unit_price": 599.0}
+        {"sku_id": "CUSTOM-001", "product_name": "定制刻字移动硬盘 1TB", "category": "定制", "quantity": 1, "unit_price": 699.0}
       ]
     },
     {
@@ -146,7 +212,7 @@
       "recipient_phone": "13800138000",
       "address": "上海市浦东新区世纪大道 100 号",
       "items": [
-        {"sku_id": "SHOE-003", "product_name": "越野跑鞋 灰色 43码", "category": "鞋", "quantity": 2, "unit_price": 359.0}
+        {"sku_id": "MONITOR-001", "product_name": "视界 27U 4K 显示器", "category": "显示器", "quantity": 2, "unit_price": 2499.0}
       ]
     },
     {
@@ -158,8 +224,8 @@
       "recipient_phone": "13800138000",
       "address": "上海市浦东新区世纪大道 100 号",
       "items": [
-        {"sku_id": "BAG-001", "product_name": "通勤双肩包 深蓝色", "category": "包", "quantity": 1, "unit_price": 259.0},
-        {"sku_id": "HAT-001", "product_name": "速干运动帽", "category": "帽", "quantity": 1, "unit_price": 89.0}
+        {"sku_id": "KEYBOARD-001", "product_name": "极光 K87 机械键盘", "category": "外设", "quantity": 1, "unit_price": 499.0},
+        {"sku_id": "MOUSE-001", "product_name": "轻羽 M2 无线鼠标", "category": "外设", "quantity": 1, "unit_price": 199.0}
       ]
     },
     {
@@ -172,7 +238,7 @@
       "recipient_phone": "13900139000",
       "address": "北京市朝阳区建国路 88 号",
       "items": [
-        {"sku_id": "JACKET-001", "product_name": "轻薄防风外套 黑色 L码", "category": "服装", "quantity": 1, "unit_price": 399.0}
+        {"sku_id": "TABLET-001", "product_name": "星云 Pad 11 平板电脑", "category": "平板", "quantity": 1, "unit_price": 2899.0}
       ]
     },
     {
@@ -184,7 +250,7 @@
       "recipient_phone": "13800138000",
       "address": "上海市浦东新区世纪大道 100 号",
       "items": [
-        {"sku_id": "SHOE-001", "product_name": "轻量跑鞋 白色 42码", "category": "鞋", "quantity": 1, "unit_price": 299.0, "item_status": "returning"}
+        {"sku_id": "LAPTOP-001", "product_name": "星云 Book 14 轻薄本", "category": "笔记本", "quantity": 1, "unit_price": 4999.0, "item_status": "returning"}
       ]
     },
     {
@@ -196,7 +262,7 @@
       "recipient_phone": "13800138000",
       "address": "上海市浦东新区世纪大道 100 号",
       "items": [
-        {"sku_id": "SOCK-001", "product_name": "运动短袜 三双装", "category": "袜", "quantity": 3, "unit_price": 39.0}
+        {"sku_id": "DIGITAL-001", "product_name": "ProCam 视频编辑软件一年授权", "category": "虚拟商品", "quantity": 1, "unit_price": 299.0}
       ]
     }
   ],

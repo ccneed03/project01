@@ -27,6 +27,8 @@ def _ensure_schema_updates():
     ensure_column("documents", "current_index_task_id", "current_index_task_id INTEGER")
     ensure_column("chunks", "index_task_id", "index_task_id INTEGER")
     ensure_column("chat_sessions", "assistant_id", "assistant_id INTEGER")
+    ensure_column("return_requests", "policy_version", "policy_version VARCHAR(64)")
+    ensure_column("return_requests", "decision_json", "decision_json JSON")
 
 
 def create_app(config_class=Config):

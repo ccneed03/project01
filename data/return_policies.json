@@ -1,0 +1,43 @@
+{
+  "policy_version": "2026.11",
+  "effective_from": "2025-01-01T00:00:00",
+  "source_document": "refund_policy.md",
+  "rules": [
+    {
+      "category": "*",
+      "category_label": "普通商品",
+      "return_window_days": 7,
+      "no_reason_allowed": true,
+      "no_reason_requires_unopened": true,
+      "manual_review_allowed": true,
+      "source_section": "一、七天无理由退货；二、可退货条件"
+    },
+    {
+      "category": "定制",
+      "category_label": "定制类商品",
+      "return_window_days": 7,
+      "no_reason_allowed": false,
+      "no_reason_requires_unopened": true,
+      "manual_review_allowed": true,
+      "source_section": "三、不支持无理由退货的商品"
+    },
+    {
+      "category": "虚拟商品",
+      "category_label": "虚拟商品",
+      "return_window_days": 0,
+      "no_reason_allowed": false,
+      "no_reason_requires_unopened": true,
+      "manual_review_allowed": false,
+      "source_section": "三、不支持无理由退货的商品"
+    },
+    {
+      "category": "数码",
+      "category_label": "数码商品",
+      "return_window_days": 7,
+      "no_reason_allowed": true,
+      "no_reason_requires_unopened": true,
+      "manual_review_allowed": true,
+      "source_section": "一、七天无理由退货；二、可退货条件"
+    }
+  ]
+}

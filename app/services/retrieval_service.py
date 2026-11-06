@@ -54,8 +54,8 @@ class RetrievalService:
             top_k: Number of results to return, default from KB rerank_k
             enable_rerank: Whether to enable reranking, default from KB
             filter_expr: Optional Milvus scalar metadata filter expression, e.g.
-                ``doc_type == "product"``, ``category == "鞋"``,
-                ``sku_id == "SHOE-001"``. Composed with the knowledge_base_id
+                ``doc_type == "product"``, ``category == "笔记本"``,
+                ``sku_id == "LAPTOP-001"``. Composed with the knowledge_base_id
                 filter via AND. Only applied when the collection exposes the
                 corresponding scalar fields.
 

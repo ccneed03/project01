@@ -55,7 +55,7 @@ class Config:
     AGENT_MAX_STEPS = int(os.getenv("AGENT_MAX_STEPS", "5"))
     AGENT_ACTION_TTL_MINUTES = int(os.getenv("AGENT_ACTION_TTL_MINUTES", "15"))
     AGENT_HISTORY_LIMIT = int(os.getenv("AGENT_HISTORY_LIMIT", "6"))
-    AGENT_RETURN_WINDOW_DAYS = int(os.getenv("AGENT_RETURN_WINDOW_DAYS", "7"))
+    AGENT_ACTION_SECRET = os.getenv("AGENT_ACTION_SECRET", SECRET_KEY)
 
 
 class DevelopmentConfig(Config):

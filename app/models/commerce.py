@@ -96,7 +96,11 @@ class Shipment(db.Model):
 
 
 class Inventory(db.Model):
-    """Simple SKU stock table used by check_inventory."""
+    """Simple SKU stock table retained for the wider commerce domain.
+
+    Inventory is intentionally not exposed to the after-sales Agent: ordinary
+    return submission does not need stock data, and exchange is out of MVP scope.
+    """
 
     __tablename__ = "inventory"
 
@@ -110,6 +114,49 @@ class Inventory(db.Model):
 
     def __repr__(self):
         return f"<Inventory {self.sku_id} stock={self.stock}>"
+
+
+class ReturnPolicy(db.Model):
+    """Versioned, executable return policy used by the deterministic engine.
+
+    RAG documents explain a policy to users, but this table is the source of
+    truth for hard eligibility decisions. ``category == "*"`` is the fallback
+    rule; a category-specific row overrides it for the same policy version.
+    """
+
+    __tablename__ = "return_policies"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "policy_version",
+            "category",
+            name="uq_return_policy_version_category",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    policy_version = db.Column(db.String(64), nullable=False, index=True)
+    category = db.Column(db.String(64), nullable=False, default="*", index=True)
+    category_label = db.Column(db.String(128), nullable=False)
+    effective_from = db.Column(db.DateTime, nullable=False, index=True)
+    effective_to = db.Column(db.DateTime)
+
+    return_window_days = db.Column(db.Integer, nullable=False, default=7)
+    no_reason_allowed = db.Column(db.Boolean, nullable=False, default=True)
+    no_reason_requires_unopened = db.Column(
+        db.Boolean, nullable=False, default=True
+    )
+    manual_review_allowed = db.Column(db.Boolean, nullable=False, default=True)
+
+    source_document = db.Column(db.String(256), nullable=False)
+    source_section = db.Column(db.String(256), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    def __repr__(self):
+        return (
+            f"<ReturnPolicy {self.policy_version} {self.category} "
+            f"{self.return_window_days}d>"
+        )
 
 
 class ReturnRequest(db.Model):
@@ -128,7 +175,11 @@ class ReturnRequest(db.Model):
     item_ids_json = db.Column(db.JSON, nullable=False, default=list)
     reason = db.Column(db.String(512))
     refund_amount = db.Column(db.Float, nullable=False, default=0.0)
-    status = db.Column(db.String(32), nullable=False, default="approved")  # approved, refunded, failed
+    status = db.Column(db.String(32), nullable=False, default="submitted")
+    # submitted / manual_review / approved / refunded / failed
+
+    policy_version = db.Column(db.String(64))
+    decision_json = db.Column(db.JSON, nullable=False, default=dict)
 
     idempotency_key = db.Column(db.String(64), unique=True, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
@@ -159,7 +210,7 @@ class Product(db.Model):
 
     # 产品说明（可入向量库的长文本）
     description = db.Column(db.Text, nullable=False, default="")
-    # 结构化属性，如 {"材质": "...", "尺码": "...", "适用场景": "..."}
+    # 结构化属性，如 {"处理器": "...", "内存": "...", "接口": "..."}
     details = db.Column(db.JSON, nullable=False, default=dict)
     # 使用 / 洗涤说明
     care_info = db.Column(db.Text, nullable=False, default="")

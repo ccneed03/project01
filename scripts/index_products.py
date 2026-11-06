@@ -120,7 +120,7 @@ def _build_product_text(product: Product) -> str:
         details = "，".join(f"{k}：{v}" for k, v in product.details.items())
         parts.append(f"属性：{details}")
     if product.care_info:
-        parts.append(f"洗涤保养：{product.care_info}")
+        parts.append(f"使用与保养：{product.care_info}")
     if product.delivery_note:
         parts.append(f"发货说明：{product.delivery_note}")
     if product.return_note:

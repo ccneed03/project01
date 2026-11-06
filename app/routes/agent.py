@@ -234,7 +234,12 @@ def agent_stream(assistant_id):
 @login_required
 def confirm_action(action_id):
     try:
-        result = AgentService.confirm_action(action_id, current_user.id)
+        data = request.get_json(silent=True) or {}
+        result = AgentService.confirm_action(
+            action_id,
+            current_user.id,
+            confirmation_token=(data.get("confirmation_token") or "").strip(),
+        )
         return jsonify(result)
     except AgentActionError as exc:
         return (

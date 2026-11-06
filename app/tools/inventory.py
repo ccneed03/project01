@@ -1,4 +1,8 @@
-"""Read-only inventory query tool."""
+"""Legacy inventory lookup kept for wider commerce experiments.
+
+The tool is intentionally not registered for the after-sales Agent: inventory
+belongs to exchange workflows, which are outside the current MVP.
+"""
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -12,7 +16,7 @@ from app.tools.base import ToolResult
 class CheckInventoryArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    sku_id: str = Field(description="商品 SKU 编号，例如 SHOE-001")
+    sku_id: str = Field(description="商品 SKU 编号，例如 LAPTOP-001")
 
 
 def check_inventory(

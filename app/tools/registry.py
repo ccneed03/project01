@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from app.tools.after_sales import PrepareReturnArgs, prepare_return
 from app.tools.base import ToolSpec
-from app.tools.inventory import CheckInventoryArgs, check_inventory
 from app.tools.knowledge import KnowledgeSearchArgs, knowledge_search
 from app.tools.logistics import QueryLogisticsArgs, query_logistics
 from app.tools.orders import QueryOrderArgs, query_order
@@ -85,24 +84,12 @@ def build_default_registry() -> ToolRegistry:
     )
     registry.register(
         ToolSpec(
-            name="check_inventory",
-            label="查询库存",
-            description="按 SKU 查询商品库存和可售数量。",
-            input_model=CheckInventoryArgs,
-            handler=check_inventory,
-            risk="read",
-            auth_scope="after_sales.read",
-            timeout_seconds=5.0,
-            retryable=True,
-        )
-    )
-    registry.register(
-        ToolSpec(
             name="search_product",
             label="查询商品",
             description=(
-                "按商品名、SKU 或分类查询商品目录：返回产品说明、材质/尺码等属性、"
-                "洗涤说明、发货与退换说明。用户询问商品规格、材质、洗涤方式、能否退换时优先调用。"
+                "按商品名、SKU 或分类查询商品目录：返回产品说明、处理器/存储等属性、"
+                "使用与保养说明、发货与退换说明。用户询问电子商品配置、功能、"
+                "激活状态或能否退换时优先调用。"
             ),
             input_model=SearchProductArgs,
             handler=search_product,
@@ -117,8 +104,9 @@ def build_default_registry() -> ToolRegistry:
             name="prepare_return",
             label="准备退货",
             description=(
-                "为订单商品创建退货待确认动作。该工具只做资格检查和退款金额计算，"
-                "不会修改订单或退款；调用后系统会暂停并展示确认卡片，必须由用户确认后才会执行。"
+                "为订单商品创建退货申请待确认动作。调用前必须知道商品是否拆封/使用"
+                "以及归一化原因；未知时先向用户询问。该工具只做确定性资格检查和"
+                "预计退款金额计算，不会修改订单；用户确认后才提交申请。"
             ),
             input_model=PrepareReturnArgs,
             handler=prepare_return,

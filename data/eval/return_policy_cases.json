@@ -1,0 +1,134 @@
+[
+  {
+    "name": "笔记本未拆封无理由",
+    "category": "笔记本",
+    "status": "delivered",
+    "delivered_days_ago": 2,
+    "item_status": "normal",
+    "condition": "unopened",
+    "reason_code": "no_longer_needed",
+    "expected_code": "ELIGIBLE",
+    "requires_review": false
+  },
+  {
+    "name": "笔记本已拆封但未激活",
+    "category": "笔记本",
+    "status": "delivered",
+    "delivered_days_ago": 2,
+    "item_status": "normal",
+    "condition": "opened",
+    "reason_code": "no_longer_needed",
+    "expected_code": "ITEM_CONDITION_NOT_ELIGIBLE",
+    "requires_review": false
+  },
+  {
+    "name": "手机已激活无理由",
+    "category": "手机",
+    "status": "delivered",
+    "delivered_days_ago": 3,
+    "item_status": "normal",
+    "condition": "activated",
+    "reason_code": "no_longer_needed",
+    "expected_code": "ITEM_CONDITION_NOT_ELIGIBLE",
+    "requires_review": false
+  },
+  {
+    "name": "定制刻字硬盘无理由",
+    "category": "定制",
+    "status": "delivered",
+    "delivered_days_ago": 1,
+    "item_status": "normal",
+    "condition": "unopened",
+    "reason_code": "no_longer_needed",
+    "expected_code": "NO_REASON_NOT_ALLOWED",
+    "requires_review": false
+  },
+  {
+    "name": "定制刻字硬盘到货破损",
+    "category": "定制",
+    "status": "delivered",
+    "delivered_days_ago": 1,
+    "item_status": "normal",
+    "condition": "damaged",
+    "reason_code": "damaged_on_arrival",
+    "expected_code": "MANUAL_REVIEW_REQUIRED",
+    "requires_review": true
+  },
+  {
+    "name": "虚拟商品质量问题",
+    "category": "虚拟商品",
+    "status": "delivered",
+    "delivered_days_ago": 1,
+    "item_status": "normal",
+    "condition": "opened",
+    "reason_code": "defective_quality",
+    "expected_code": "MANUAL_REVIEW_NOT_ALLOWED",
+    "requires_review": false
+  },
+  {
+    "name": "耳机未拆封无理由",
+    "category": "耳机",
+    "status": "delivered",
+    "delivered_days_ago": 2,
+    "item_status": "normal",
+    "condition": "unopened",
+    "reason_code": "no_longer_needed",
+    "expected_code": "ELIGIBLE",
+    "requires_review": false
+  },
+  {
+    "name": "平板已激活无理由",
+    "category": "平板",
+    "status": "delivered",
+    "delivered_days_ago": 2,
+    "item_status": "normal",
+    "condition": "activated",
+    "reason_code": "no_longer_needed",
+    "expected_code": "ITEM_CONDITION_NOT_ELIGIBLE",
+    "requires_review": false
+  },
+  {
+    "name": "显示器到货破损",
+    "category": "显示器",
+    "status": "delivered",
+    "delivered_days_ago": 3,
+    "item_status": "normal",
+    "condition": "damaged",
+    "reason_code": "damaged_on_arrival",
+    "expected_code": "MANUAL_REVIEW_REQUIRED",
+    "requires_review": true
+  },
+  {
+    "name": "笔记本超过退货窗口",
+    "category": "笔记本",
+    "status": "delivered",
+    "delivered_days_ago": 10,
+    "item_status": "normal",
+    "condition": "unopened",
+    "reason_code": "no_longer_needed",
+    "expected_code": "RETURN_WINDOW_EXPIRED",
+    "requires_review": false
+  },
+  {
+    "name": "显示器订单未签收",
+    "category": "显示器",
+    "status": "shipped",
+    "delivered_days_ago": null,
+    "item_status": "normal",
+    "condition": "unopened",
+    "reason_code": "no_longer_needed",
+    "expected_code": "ORDER_NOT_DELIVERED",
+    "requires_review": false
+  },
+  {
+    "name": "笔记本已在退货流程",
+    "category": "笔记本",
+    "status": "delivered",
+    "delivered_days_ago": 2,
+    "item_status": "returning",
+    "condition": "unopened",
+    "reason_code": "no_longer_needed",
+    "expected_code": "ITEM_ALREADY_IN_RETURN",
+    "requires_review": false
+  }
+]

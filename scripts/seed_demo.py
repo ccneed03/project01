@@ -33,11 +33,12 @@ from app.models.commerce import (  # noqa: E402
 from app.models.knowledge_base import KnowledgeBase  # noqa: E402
 from app.models.role import Permission, Role  # noqa: E402
 from app.models.user import User  # noqa: E402
+from app.services.return_policy import ReturnPolicyEngine  # noqa: E402
 
 DATA_FILE = PROJECT_ROOT / "data" / "demo_seed.json"
 
 AFTER_SALES_PERMISSIONS = [
-    ("after_sales.read", "after_sales", "read", "查询订单、物流、库存"),
+    ("after_sales.read", "after_sales", "read", "查询订单、物流和商品"),
     ("after_sales.write", "after_sales", "write", "发起售后动作"),
 ]
 
@@ -62,6 +63,8 @@ def ensure_permissions() -> None:
                 description=description,
             )
             db.session.add(permission)
+        else:
+            permission.description = description
         permissions.append(permission)
     db.session.commit()
 
@@ -115,9 +118,9 @@ def ensure_demo_assistant(owner: User) -> tuple[KnowledgeBase, Assistant]:
     if not assistant:
         assistant = Assistant(
             name="售后助手",
-            description="查询订单、物流、库存，并受控发起退货申请。",
+            description="查询电子商品售后政策、订单和物流，并在资格判断与用户确认后提交退货申请。",
             llm_model=Config.LLM_MODEL,
-            opening_message="你好，我可以帮你查订单、物流和库存，也可以发起退货申请。",
+            opening_message="你好，我可以解释电子产品售后政策、查询订单和物流，并在核对激活状态后提交退货申请。",
             created_by=owner.id,
         )
         db.session.add(assistant)
@@ -150,6 +153,25 @@ def ensure_demo_assistant(owner: User) -> tuple[KnowledgeBase, Assistant]:
         )
         db.session.commit()
 
+    legacy_descriptions = {
+        "查询订单、物流、库存，并受控发起退货申请。",
+        "查询售后政策、订单和物流，并在资格判断与用户确认后提交退货申请。",
+    }
+    legacy_openings = {
+        "你好，我可以帮你查订单、物流和库存，也可以发起退货申请。",
+        "你好，我可以解释售后政策、查询订单和物流，并在核对商品状态后提交退货申请。",
+    }
+    if assistant.description in legacy_descriptions:
+        assistant.description = (
+            "查询电子商品售后政策、订单和物流，并在资格判断与用户确认后提交退货申请。"
+        )
+    if assistant.opening_message in legacy_openings:
+        assistant.opening_message = (
+            "你好，我可以解释电子产品售后政策、查询订单和物流，"
+            "并在核对激活状态后提交退货申请。"
+        )
+    db.session.commit()
+
     return knowledge_base, assistant
 
 
@@ -173,6 +195,18 @@ def upsert_inventory(payload: list[dict]) -> int:
         inventory.warehouse = item.get("warehouse", "WH-1")
     db.session.commit()
     return count
+
+
+def prune_catalog(sku_ids: list[str]) -> tuple[int, int]:
+    """Remove products/inventory that no longer belong to the demo catalog."""
+    stale_products = Product.query.filter(Product.sku_id.notin_(sku_ids)).all()
+    stale_inventory = Inventory.query.filter(Inventory.sku_id.notin_(sku_ids)).all()
+    for product in stale_products:
+        db.session.delete(product)
+    for inventory in stale_inventory:
+        db.session.delete(inventory)
+    db.session.commit()
+    return len(stale_products), len(stale_inventory)
 
 
 def reset_orders(order_nos: list[str]) -> None:
@@ -297,12 +331,16 @@ def main() -> None:
         owner = get_or_create_user(args.username, password="admin123", superuser=(args.username == "admin"))
         other = get_or_create_user(args.other_username, password="demo123")
         knowledge_base, assistant = ensure_demo_assistant(owner)
+        policy_rules = ReturnPolicyEngine.seed_builtin_policies()
 
         if args.reset:
             reset_orders([order["order_no"] for order in payload["orders"]])
 
         inventories = upsert_inventory(payload["skus"])
         products = seed_products(payload.get("products", []))
+        pruned_products, pruned_inventory = prune_catalog(
+            [item["sku_id"] for item in payload["skus"]]
+        )
         orders, skipped = seed_orders(payload["orders"], owner=owner, other=other)
         shipments = seed_shipments(payload["shipments"])
 
@@ -311,6 +349,8 @@ def main() -> None:
         print(f"  owner       : {owner.username} (id={owner.id})")
         print(f"  other user  : {other.username} (id={other.id})")
         print(f"  inventory   : +{inventories}")
+        print(f"  pruned      : products={pruned_products}, inventory={pruned_inventory}")
+        print(f"  return rules: {policy_rules} upserted")
         print(f"  products    : +{products}")
         print(f"  orders      : +{orders}, skipped={skipped}")
         print(f"  shipments   : +{shipments}")
@@ -321,9 +361,10 @@ def main() -> None:
         print(f"Upload and index: {PROJECT_ROOT / 'data' / 'policies' / 'refund_policy.md'}")
         print("Try these in the assistant chat:")
         print("  1. 订单 202610280001 到哪了？")
-        print("  2. 这双鞋还能退吗？")
-        print("  3. 帮我退订单 202610280001 的第一件商品，原因是不合适")
+        print("  2. 订单 202610280001 的笔记本还在退货期内吗？")
+        print("  3. 帮我退订单 202610280001 的第一件商品，未拆封、未激活，原因是不合适")
         print("  4. 查询订单 202610280006（其他用户的订单，应统一提示未找到）")
+        print("  5. 订单 202610280003 的定制移动硬盘到货破损（应进入人工核验）")
 
 
 if __name__ == "__main__":

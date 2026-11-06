@@ -14,14 +14,16 @@ import argparse
 import socket
 import subprocess
 import sys
-from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-POLICY_FILE = PROJECT_ROOT / "data" / "policies" / "refund_policy.md"
+POLICY_FILES = [
+    PROJECT_ROOT / "data" / "policies" / "refund_policy.md",
+    PROJECT_ROOT / "data" / "policies" / "electronics_after_sales_faq.md",
+]
 ASSISTANT_NAME = "售后助手"
 
 results: list[tuple[str, str, str]] = []
@@ -50,7 +52,7 @@ def port_open(url: str, default_port: int, timeout: float = 1.2) -> bool:
         sock.close()
 
 
-def check_vector_store(assistant, knowledge_base, policy_document) -> None:
+def check_vector_store(assistant, knowledge_base) -> None:
     from app.config import Config
 
     milvus_up = port_open(Config.MILVUS_URI, 19530)
@@ -84,22 +86,21 @@ def check_vector_store(assistant, knowledge_base, policy_document) -> None:
             return
 
         client.load_collection(collection_name=Config.MILVUS_COLLECTION)
-        if policy_document:
-            rows = client.query(
-                collection_name=Config.MILVUS_COLLECTION,
-                filter=(
-                    f"knowledge_base_id == {knowledge_base.id} "
-                    f"and document_id == {policy_document.id}"
-                ),
-                output_fields=["id"],
-                limit=1,
-            )
-            report(
-                "OK" if rows else "WARN",
-                "Policy vectors",
-                f"{len(rows)} row(s)",
-                "运行 python scripts/bootstrap_demo.py --skip-products 重新索引政策文档。",
-            )
+        rows = client.query(
+            collection_name=Config.MILVUS_COLLECTION,
+            filter=(
+                f"knowledge_base_id == {knowledge_base.id} "
+                'and doc_type == "document"'
+            ),
+            output_fields=["id"],
+            limit=100,
+        )
+        report(
+            "OK" if rows else "WARN",
+            "Policy vectors",
+            f"{len(rows)} row(s)",
+            "运行 python scripts/bootstrap_demo.py --skip-products 重新索引政策文档。",
+        )
 
         rows = client.query(
             collection_name=Config.MILVUS_COLLECTION,
@@ -108,7 +109,7 @@ def check_vector_store(assistant, knowledge_base, policy_document) -> None:
                 'and doc_type == "product"'
             ),
             output_fields=["sku_id"],
-            limit=1,
+            limit=100,
         )
         report(
             "OK" if rows else "WARN",
@@ -173,10 +174,10 @@ def main() -> int:
     from app.extensions import db
     from app.models.assistant import Assistant
     from app.models.chat import ChatSession
-    from app.models.commerce import Inventory, Order, Product
+    from app.models.commerce import Order, Product, ReturnPolicy
     from app.models.document import Document
     from app.models.user import User
-    from app.services.after_sales_service import NON_RETURNABLE_CATEGORIES
+    from app.services.return_policy import ReturnPolicyEngine
 
     app = create_app()
     with app.app_context():
@@ -204,27 +205,50 @@ def main() -> int:
         )
 
         if owner:
-            now = datetime.now()
             returnable = []
             for order in Order.query.filter_by(user_id=owner.id, status="delivered").all():
-                if not order.delivered_at:
-                    continue
-                if now - order.delivered_at > timedelta(days=Config.AGENT_RETURN_WINDOW_DAYS):
-                    continue
-                items = [
-                    item
-                    for item in order.items
-                    if item.item_status == "normal"
-                    and item.category not in NON_RETURNABLE_CATEGORIES
-                ]
-                if items:
+                items = [item for item in order.items if item.item_status == "normal"]
+                decision = ReturnPolicyEngine.evaluate(
+                    order=order,
+                    items=items,
+                    condition="unopened",
+                    reason_code="no_longer_needed",
+                )
+                if decision.eligible:
                     returnable.append(order.order_no)
             report(
                 "OK" if returnable else "FAIL",
-                f"Returnable orders ({Config.AGENT_RETURN_WINDOW_DAYS}d)",
+                "Returnable orders",
                 ", ".join(returnable) if returnable else "none",
                 "python scripts/bootstrap_demo.py（默认 --reset，刷新签收时间）",
             )
+
+        policies = ReturnPolicy.query.filter_by(active=True).all()
+        versions = sorted({policy.policy_version for policy in policies})
+        report(
+            "OK" if policies else "FAIL",
+            "Executable policy",
+            f"{len(policies)} rules, version={', '.join(versions) if versions else 'none'}",
+            "运行 python scripts/bootstrap_demo.py 重新加载 data/return_policies.json。",
+        )
+        policy_text = "\n".join(
+            policy_file.read_text(encoding="utf-8")
+            for policy_file in POLICY_FILES
+            if policy_file.exists()
+        )
+        versions_in_text = [
+            version for version in versions if f"政策版本：{version}" in policy_text
+        ]
+        report(
+            "OK" if policies and len(versions_in_text) == len(versions) else "FAIL",
+            "Policy text sync",
+            (
+                f"{len(versions_in_text)}/{len(versions)} version(s) present in Markdown"
+                if versions
+                else "no executable version"
+            ),
+            "同步维护 data/return_policies.json 与 data/policies/refund_policy.md 的政策版本。",
+        )
 
         products = Product.query.count()
         report(
@@ -235,31 +259,43 @@ def main() -> int:
         )
         report(
             "OK",
-            "Inventory / orders",
-            f"{Inventory.query.count()} inventory / {Order.query.count()} orders",
+            "Orders",
+            f"{Order.query.count()} order(s)",
         )
 
-        policy_document = None
+        policy_documents = []
         if knowledge_base:
-            policy_document = Document.query.filter_by(
-                knowledge_base_id=knowledge_base.id,
-                original_filename=POLICY_FILE.name,
-                is_deleted=False,
-            ).first()
+            policy_documents = Document.query.filter(
+                Document.knowledge_base_id == knowledge_base.id,
+                Document.original_filename.in_(
+                    [policy_file.name for policy_file in POLICY_FILES]
+                ),
+                Document.is_deleted.is_(False),
+            ).all()
+        missing_policy_files = [
+            policy_file.name for policy_file in POLICY_FILES if not policy_file.exists()
+        ]
         report(
-            "OK" if POLICY_FILE.exists() else "FAIL",
-            "Policy file",
-            str(POLICY_FILE.relative_to(PROJECT_ROOT)) if POLICY_FILE.exists() else "missing",
-            "确认 data/policies/refund_policy.md 存在。",
+            "OK" if not missing_policy_files else "FAIL",
+            "Policy files",
+            (
+                f"{len(POLICY_FILES)} document(s)"
+                if not missing_policy_files
+                else f"missing: {', '.join(missing_policy_files)}"
+            ),
+            "确认 data/policies 下的退货政策和电子产品 FAQ 都存在。",
         )
+        completed_policy_docs = [
+            document
+            for document in policy_documents
+            if document.status == "completed"
+        ]
         report(
-            "OK" if policy_document and policy_document.status == "completed" else "WARN",
+            "OK" if len(completed_policy_docs) == len(POLICY_FILES) else "WARN",
             "Policy indexing",
             (
-                f"document {policy_document.id}, status={policy_document.status}, "
-                f"chunks={policy_document.chunk_count or 0}"
-                if policy_document
-                else "not uploaded"
+                f"{len(completed_policy_docs)}/{len(POLICY_FILES)} completed, "
+                f"chunks={sum(document.chunk_count or 0 for document in completed_policy_docs)}"
             ),
             "Milvus/Ollama 可用时运行 bootstrap_demo.py；否则使用本地政策降级。",
         )
@@ -269,7 +305,7 @@ def main() -> int:
             f"{ChatSession.query.filter_by(assistant_id=assistant.id).count() if assistant else 0}",
         )
 
-        check_vector_store(assistant, knowledge_base, policy_document)
+        check_vector_store(assistant, knowledge_base)
         db.session.remove()
 
     failures = sum(1 for level, _, _ in results if level == "FAIL")

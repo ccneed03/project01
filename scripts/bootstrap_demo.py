@@ -34,6 +34,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 POLICY_FILE = PROJECT_ROOT / "data" / "policies" / "refund_policy.md"
+FAQ_FILE = PROJECT_ROOT / "data" / "policies" / "electronics_after_sales_faq.md"
+POLICY_FILES = [POLICY_FILE, FAQ_FILE]
 DEFAULT_ASSISTANT_NAME = "售后助手"
 
 
@@ -140,8 +142,8 @@ def purge_demo_chat(assistant, owner, other) -> None:
     )
 
 
-def index_policy(assistant, owner) -> None:
-    """Upload and index the demo policy into the assistant's KB."""
+def index_policy_file(assistant, owner, policy_file: Path) -> None:
+    """Upload and index one policy document into the assistant's KB."""
     from werkzeug.datastructures import FileStorage
 
     from app.config import Config
@@ -155,8 +157,8 @@ def index_policy(assistant, owner) -> None:
     if not knowledge_base:
         print("[policy] 助手未绑定知识库，跳过向量索引（本地降级仍可用）")
         return
-    if not POLICY_FILE.exists():
-        print(f"[policy] 未找到 {POLICY_FILE}，跳过向量索引")
+    if not policy_file.exists():
+        print(f"[policy] 未找到 {policy_file}，跳过向量索引")
         return
 
     embedding_model = (
@@ -175,7 +177,7 @@ def index_policy(assistant, owner) -> None:
 
     document = Document.query.filter_by(
         knowledge_base_id=knowledge_base.id,
-        original_filename=POLICY_FILE.name,
+        original_filename=policy_file.name,
         is_deleted=False,
     ).first()
     if document and not Path(document.file_path).exists():
@@ -189,8 +191,8 @@ def index_policy(assistant, owner) -> None:
 
     if not document:
         file_storage = FileStorage(
-            stream=BytesIO(POLICY_FILE.read_bytes()),
-            filename=POLICY_FILE.name,
+            stream=BytesIO(policy_file.read_bytes()),
+            filename=policy_file.name,
             content_type="text/markdown",
         )
         ok, message, document = DocumentService.create_document(
@@ -226,6 +228,13 @@ def index_policy(assistant, owner) -> None:
         print("          knowledge_search 将使用本地政策文件降级检索。")
 
 
+def index_policy(assistant, owner) -> None:
+    """Upload and index all demo policy documents."""
+    for policy_file in POLICY_FILES:
+        print(f"[policy] 处理 {policy_file.name}")
+        index_policy_file(assistant, owner, policy_file)
+
+
 def index_products(assistant) -> None:
     """Index products into the assistant's KB (the KB search_product reads)."""
     from app.models.commerce import Product
@@ -252,27 +261,20 @@ def index_products(assistant) -> None:
 def print_summary(owner, assistant) -> None:
     from app.extensions import db
     from app.models.chat import ChatSession
-    from app.models.commerce import Inventory, Order, Product
+    from app.models.commerce import Order, Product, ReturnPolicy
     from app.models.document import Document
-    from app.services.after_sales_service import NON_RETURNABLE_CATEGORIES
-    from datetime import datetime, timedelta
+    from app.services.return_policy import ReturnPolicyEngine
 
-    from app.config import Config
-
-    now = datetime.now()
     returnable = []
     for order in Order.query.filter_by(user_id=owner.id, status="delivered").all():
-        if not order.delivered_at:
-            continue
-        if now - order.delivered_at > timedelta(days=Config.AGENT_RETURN_WINDOW_DAYS):
-            continue
-        items = [
-            item
-            for item in order.items
-            if item.item_status == "normal"
-            and item.category not in NON_RETURNABLE_CATEGORIES
-        ]
-        if items:
+        items = [item for item in order.items if item.item_status == "normal"]
+        decision = ReturnPolicyEngine.evaluate(
+            order=order,
+            items=items,
+            condition="unopened",
+            reason_code="no_longer_needed",
+        )
+        if decision.eligible:
             returnable.append(order.order_no)
 
     policy_doc = None
@@ -290,7 +292,14 @@ def print_summary(owner, assistant) -> None:
     print(f"  登录           : {owner.username} / admin123（若未修改）")
     print(f"  订单           : {Order.query.count()} 笔")
     print(f"  可退订单       : {', '.join(returnable) if returnable else '无（请重新运行本脚本）'}")
-    print(f"  商品/库存      : {Product.query.count()} / {Inventory.query.count()}")
+    print(f"  商品           : {Product.query.count()} 个")
+    versions = sorted(
+        {
+            policy.policy_version
+            for policy in ReturnPolicy.query.filter_by(active=True).all()
+        }
+    )
+    print(f"  退货规则版本   : {', '.join(versions) if versions else '未加载'}")
     print(f"  政策文档索引   : {policy_doc.status if policy_doc else '未建立'}")
     print(f"  演示会话       : {ChatSession.query.filter_by(assistant_id=assistant.id).count()} 个")
     print(f"  助手           : {assistant.name} (id={assistant.id})")
