@@ -138,3 +138,38 @@ class ReturnRequest(db.Model):
 
     def __repr__(self):
         return f"<ReturnRequest order={self.order_id} refund={self.refund_amount}>"
+
+
+class Product(db.Model):
+    """Authoritative product catalog.
+
+    ``description`` / ``care_info`` / ``delivery_note`` / ``return_note`` are
+    natural-language product texts that may be indexed into the vector store
+    (same pipeline as the refund policy) so the agent can answer descriptive
+    questions about materials, sizing, care and delivery.
+    """
+
+    __tablename__ = "products"
+
+    id = db.Column(db.Integer, primary_key=True)
+    sku_id = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    product_name = db.Column(db.String(256), nullable=False)
+    category = db.Column(db.String(64), nullable=False, default="general")
+    brand = db.Column(db.String(64))
+
+    # 产品说明（可入向量库的长文本）
+    description = db.Column(db.Text, nullable=False, default="")
+    # 结构化属性，如 {"材质": "...", "尺码": "...", "适用场景": "..."}
+    details = db.Column(db.JSON, nullable=False, default=dict)
+    # 使用 / 洗涤说明
+    care_info = db.Column(db.Text, nullable=False, default="")
+    # 发货 / 物流说明
+    delivery_note = db.Column(db.Text, nullable=False, default="")
+    # 退换说明
+    return_note = db.Column(db.Text, nullable=False, default="")
+
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f"<Product {self.sku_id} {self.product_name}>"

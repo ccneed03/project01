@@ -271,6 +271,13 @@ class DocumentService:
         )
         schema.add_field(field_name="dense", datatype=DataType.FLOAT_VECTOR, dim=Config.EMBEDDING_DIM)
         schema.add_field(field_name="sparse", datatype=DataType.SPARSE_FLOAT_VECTOR)
+        # Scalar metadata for filtered retrieval (doc_type / category / sku_id).
+        # Note: these are intentionally NOT in the `required` set above, so an
+        # existing collection created without them keeps working; product docs
+        # simply won't be filterable until the collection is rebuilt.
+        schema.add_field(field_name="doc_type", datatype=DataType.VARCHAR, max_length=64)
+        schema.add_field(field_name="category", datatype=DataType.VARCHAR, max_length=128)
+        schema.add_field(field_name="sku_id", datatype=DataType.VARCHAR, max_length=128)
 
         schema.add_function(
             Function(

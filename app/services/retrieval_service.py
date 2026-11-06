@@ -43,6 +43,7 @@ class RetrievalService:
         enable_rerank: bool = None,
         rerank_model: str | None = None,
         score_threshold: float | None = None,
+        filter_expr: str | None = None,
         strict: bool = False,
     ) -> List[Dict[str, Any]]:
         """Search knowledge base
@@ -52,6 +53,11 @@ class RetrievalService:
             method: Search method (vector, bm25, hybrid), default from KB
             top_k: Number of results to return, default from KB rerank_k
             enable_rerank: Whether to enable reranking, default from KB
+            filter_expr: Optional Milvus scalar metadata filter expression, e.g.
+                ``doc_type == "product"``, ``category == "鞋"``,
+                ``sku_id == "SHOE-001"``. Composed with the knowledge_base_id
+                filter via AND. Only applied when the collection exposes the
+                corresponding scalar fields.
 
         Returns:
             List of search results with document info
@@ -67,13 +73,13 @@ class RetrievalService:
             return []
 
         if method == "vector":
-            results = self._search_vector(query, top_k, strict=strict)
+            results = self._search_vector(query, top_k, filter_expr=filter_expr, strict=strict)
         elif method == "bm25":
-            results = self._search_bm25(query, top_k, strict=strict)
+            results = self._search_bm25(query, top_k, filter_expr=filter_expr, strict=strict)
         elif method == "hybrid":
             # Hybrid: BM25 top_k + vector top_k -> merge -> rerank -> return top_k
-            bm25_results = self._search_bm25(query, top_k, strict=strict)
-            vector_results = self._search_vector(query, top_k, strict=strict)
+            bm25_results = self._search_bm25(query, top_k, filter_expr=filter_expr, strict=strict)
+            vector_results = self._search_vector(query, top_k, filter_expr=filter_expr, strict=strict)
 
             if enable_rerank:
                 # Merge results and rerank
@@ -129,13 +135,38 @@ class RetrievalService:
         required = {"knowledge_base_id", "document_id", "chunk_index"}
         return required.issubset(fields)
 
-    def _build_filter(self) -> Optional[str]:
-        """Restrict retrieval results to the current knowledge base."""
+    #: boolean scalar filter fields product/knowledge documents may carry
+    FILTER_FIELDS = ("category", "sku_id", "doc_type")
+
+    def _supports_filter_fields(self, filter_expr: str | None) -> bool:
+        """Whether the collection exposes every field referenced by the expr.
+
+        When a filter expression uses a field the collection lacks (e.g. an
+        old collection created before the filter fields existed), the filter
+        would silently misbehave, so we refuse to apply it instead. This keeps
+        the feature backward compatible: old collections simply skip filtering.
+        """
+        if not filter_expr:
+            return True
+        fields = self._get_field_names()
+        return all(field in fields for field in self.FILTER_FIELDS)
+
+    def _build_filter(self, filter_expr: str | None = None) -> Optional[str]:
+        """Restrict results to the current knowledge base (+ optional filter)."""
         if not self._supports_metadata_fields():
             return None
-        return f"knowledge_base_id == {self.kb.id}"
+        kb_filter = f"knowledge_base_id == {self.kb.id}"
+        if filter_expr and self._supports_filter_fields(filter_expr):
+            return f"{kb_filter} and {filter_expr}"
+        return kb_filter
 
-    def _search_bm25(self, query: str, limit: int, strict: bool = False) -> List[Dict[str, Any]]:
+    def _search_bm25(
+        self,
+        query: str,
+        limit: int,
+        filter_expr: str | None = None,
+        strict: bool = False,
+    ) -> List[Dict[str, Any]]:
         """BM25 search (sparse vector)"""
         client = self._get_milvus_client()
 
@@ -143,26 +174,32 @@ class RetrievalService:
             output_fields = ["text"]
             if self._supports_metadata_fields():
                 output_fields.extend(["knowledge_base_id", "document_id", "chunk_index"])
+                if self._supports_filter_fields(filter_expr):
+                    output_fields.extend(self.FILTER_FIELDS)
 
             results = client.search(
                 collection_name=self.collection_name,
                 data=[query],
                 anns_field="sparse",
                 limit=limit,
-                filter=self._build_filter() or "",
+                filter=self._build_filter(filter_expr) or "",
                 output_fields=output_fields,
             )
 
             hits = []
             for hit in results[0]:
+                entity = hit["entity"]
                 hits.append({
-                    "text": hit["entity"]["text"],
+                    "text": entity["text"],
                     "score": hit["distance"],
                     "id": hit["id"],
                     "milvus_id": hit["id"],
-                    "knowledge_base_id": hit["entity"].get("knowledge_base_id"),
-                    "document_id": hit["entity"].get("document_id"),
-                    "chunk_index": hit["entity"].get("chunk_index"),
+                    "knowledge_base_id": entity.get("knowledge_base_id"),
+                    "document_id": entity.get("document_id"),
+                    "chunk_index": entity.get("chunk_index"),
+                    "category": entity.get("category"),
+                    "sku_id": entity.get("sku_id"),
+                    "doc_type": entity.get("doc_type"),
                     "source": "bm25",
                 })
             return hits
@@ -171,7 +208,13 @@ class RetrievalService:
                 raise RuntimeError(f"Milvus BM25 检索失败：{exc}") from exc
             return []
 
-    def _search_vector(self, query: str, limit: int, strict: bool = False) -> List[Dict[str, Any]]:
+    def _search_vector(
+        self,
+        query: str,
+        limit: int,
+        filter_expr: str | None = None,
+        strict: bool = False,
+    ) -> List[Dict[str, Any]]:
         """Vector search (dense vector)"""
         client = self._get_milvus_client()
         query_vec = OllamaService.embed_query(query, model=self.embedding_model)
@@ -180,6 +223,8 @@ class RetrievalService:
             output_fields = ["text"]
             if self._supports_metadata_fields():
                 output_fields.extend(["knowledge_base_id", "document_id", "chunk_index"])
+                if self._supports_filter_fields(filter_expr):
+                    output_fields.extend(self.FILTER_FIELDS)
 
             results = client.search(
                 collection_name=self.collection_name,
@@ -187,20 +232,24 @@ class RetrievalService:
                 anns_field="dense",
                 limit=limit,
                 search_params={"metric_type": "L2"},
-                filter=self._build_filter() or "",
+                filter=self._build_filter(filter_expr) or "",
                 output_fields=output_fields,
             )
 
             hits = []
             for hit in results[0]:
+                entity = hit["entity"]
                 hits.append({
-                    "text": hit["entity"]["text"],
+                    "text": entity["text"],
                     "score": hit["distance"],
                     "id": hit["id"],
                     "milvus_id": hit["id"],
-                    "knowledge_base_id": hit["entity"].get("knowledge_base_id"),
-                    "document_id": hit["entity"].get("document_id"),
-                    "chunk_index": hit["entity"].get("chunk_index"),
+                    "knowledge_base_id": entity.get("knowledge_base_id"),
+                    "document_id": entity.get("document_id"),
+                    "chunk_index": entity.get("chunk_index"),
+                    "category": entity.get("category"),
+                    "sku_id": entity.get("sku_id"),
+                    "doc_type": entity.get("doc_type"),
                     "source": "vector",
                 })
             return hits

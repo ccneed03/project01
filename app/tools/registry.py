@@ -7,6 +7,7 @@ from app.tools.inventory import CheckInventoryArgs, check_inventory
 from app.tools.knowledge import KnowledgeSearchArgs, knowledge_search
 from app.tools.logistics import QueryLogisticsArgs, query_logistics
 from app.tools.orders import QueryOrderArgs, query_order
+from app.tools.product import SearchProductArgs, search_product
 
 
 class ToolRegistry:
@@ -89,6 +90,22 @@ def build_default_registry() -> ToolRegistry:
             description="按 SKU 查询商品库存和可售数量。",
             input_model=CheckInventoryArgs,
             handler=check_inventory,
+            risk="read",
+            auth_scope="after_sales.read",
+            timeout_seconds=5.0,
+            retryable=True,
+        )
+    )
+    registry.register(
+        ToolSpec(
+            name="search_product",
+            label="查询商品",
+            description=(
+                "按商品名、SKU 或分类查询商品目录：返回产品说明、材质/尺码等属性、"
+                "洗涤说明、发货与退换说明。用户询问商品规格、材质、洗涤方式、能否退换时优先调用。"
+            ),
+            input_model=SearchProductArgs,
+            handler=search_product,
             risk="read",
             auth_scope="after_sales.read",
             timeout_seconds=5.0,

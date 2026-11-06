@@ -26,6 +26,7 @@ from app.models.commerce import (  # noqa: E402
     Inventory,
     Order,
     OrderItem,
+    Product,
     ReturnRequest,
     Shipment,
 )
@@ -261,6 +262,27 @@ def seed_shipments(payload: list[dict]) -> int:
     return created
 
 
+def seed_products(payload: list[dict]) -> int:
+    """Insert or update the authoritative product catalog rows."""
+    count = 0
+    for item in payload:
+        product = Product.query.filter_by(sku_id=item["sku_id"]).first()
+        if not product:
+            product = Product(sku_id=item["sku_id"])
+            db.session.add(product)
+            count += 1
+        product.product_name = item["product_name"]
+        product.category = item.get("category", "general")
+        product.brand = item.get("brand")
+        product.description = item.get("description", "")
+        product.details = item.get("details") or {}
+        product.care_info = item.get("care_info", "")
+        product.delivery_note = item.get("delivery_note", "")
+        product.return_note = item.get("return_note", "")
+    db.session.commit()
+    return count
+
+
 def main() -> None:
     args = parse_args()
     if not DATA_FILE.exists():
@@ -280,6 +302,7 @@ def main() -> None:
             reset_orders([order["order_no"] for order in payload["orders"]])
 
         inventories = upsert_inventory(payload["skus"])
+        products = seed_products(payload.get("products", []))
         orders, skipped = seed_orders(payload["orders"], owner=owner, other=other)
         shipments = seed_shipments(payload["shipments"])
 
@@ -288,6 +311,7 @@ def main() -> None:
         print(f"  owner       : {owner.username} (id={owner.id})")
         print(f"  other user  : {other.username} (id={other.id})")
         print(f"  inventory   : +{inventories}")
+        print(f"  products    : +{products}")
         print(f"  orders      : +{orders}, skipped={skipped}")
         print(f"  shipments   : +{shipments}")
         print(f"  knowledge   : {knowledge_base.name} (id={knowledge_base.id})")

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -125,8 +126,21 @@ class AfterSalesService:
         existing = PendingAction.query.filter_by(idempotency_key=idempotency_key).first()
         if existing:
             if existing.status == "pending":
+                # Re-submitting the same intent while a card is open must not
+                # create a second pending action.
                 return existing
-            raise AfterSalesError("DUPLICATE_REQUEST", "相同退货申请已处理或已失效，请重新发起")
+            if existing.status in {"cancelled", "expired", "failed"}:
+                # The user cancelled, the card expired, or a previous attempt
+                # failed.  This is a new attempt, not a duplicate write.
+                idempotency_key = _sha256(
+                    {"base": idempotency_key, "retry": uuid.uuid4().hex}
+                )
+            else:
+                # executing / success: never create a second write intent.
+                raise AfterSalesError(
+                    "DUPLICATE_REQUEST",
+                    "该退货申请正在处理或已完成，请勿重复提交",
+                )
 
         expires_at = now + timedelta(minutes=Config.AGENT_ACTION_TTL_MINUTES)
         display = {

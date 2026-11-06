@@ -12,7 +12,7 @@ from .document_index_task import DocumentIndexTask
 from .chat import ChatSession, ChatMessage
 from .search_history import SearchHistory
 from .eval_record import EvalRecord
-from .commerce import Order, OrderItem, Shipment, Inventory, ReturnRequest
+from .commerce import Order, OrderItem, Product, Shipment, Inventory, ReturnRequest
 from .agent import AgentRun, AgentStep, PendingAction
 
 __all__ = [
@@ -32,6 +32,7 @@ __all__ = [
     "EvalRecord",
     "Order",
     "OrderItem",
+    "Product",
     "Shipment",
     "Inventory",
     "ReturnRequest",
